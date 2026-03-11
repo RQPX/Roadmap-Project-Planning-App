@@ -17,7 +17,7 @@
  * - Statut (Single select: 9 options - see Status type)
  * - Priorité (Single select: Haute, Moyenne, Basse)
  * - Etat d'avancement (Number: 0-100)
- * - Chef de Projet (Single line text)
+ * - Chef de projet (Single line text)
  * - Partenaires au Projet (Long text)
  * - Debut du projet (Date)
  * - Fin Prevue du Projet (Date)
@@ -43,7 +43,7 @@ const FIELD_MAPPING = {
   "Statut": "status",
   "Priorité": "priority",
   "Etat d'avancement": "progress",
-  "Chef de Projet": "projectManager",
+  "Chef de projet": "projectManager",
   "Partenaires au Projet": "partners",
   "Debut du projet": "startDate",
   "Fin Prevue du Projet": "endDate",
