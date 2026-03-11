@@ -38,6 +38,11 @@ export const AUTH_CONFIG: AuthConfig = {
       password: "Directeur2024!",
       name: "Marie Ayoman",
     },
+    {
+      email: "andreas.yao@cgi.ci",
+      password: "OperateurIn2!",
+      name: "Andreas Yao",
+    },
   ],
 };
 
