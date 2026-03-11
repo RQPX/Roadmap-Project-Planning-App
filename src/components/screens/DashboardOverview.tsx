@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProjects } from "../../contexts/ProjectsContext";
 import { Alert, AlertDescription } from "../ui/alert";
+import { formatProgress, formatProgressValue } from "../../utils/formatProgress";
 
 export default function DashboardOverview() {
   const { isAdmin, isDirecteur } = useAuth();
@@ -32,7 +33,7 @@ export default function DashboardOverview() {
     (p) =>
       p.status === "En exécution" ||
       p.status === "En production" ||
-      p.status === "En étude"
+      p.status === "En etude"
   ).length;
 
   const delayedProjects = projects.filter((p) => p.isDelayed).length;
@@ -41,6 +42,9 @@ export default function DashboardOverview() {
     projects.length > 0
       ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length
       : 0;
+
+  // Convert average progress to percentage if needed
+  const averageProgressPercent = formatProgressValue(averageProgress);
 
   // Calculate status distribution for pie chart
   const statusDistribution = Object.entries(
@@ -122,7 +126,7 @@ export default function DashboardOverview() {
             <div className="flex items-center space-x-3">
               <TrendingUp className="h-8 w-8 text-green-600" />
               <div className="text-4xl font-bold text-gray-900">
-                {Math.round(averageProgress)}%
+                {averageProgressPercent}%
               </div>
             </div>
             <Progress value={averageProgress} className="h-2" />
@@ -201,7 +205,7 @@ export default function DashboardOverview() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Clôturés</span>
                 <span className="text-lg font-semibold">
-                  {projects.filter((p) => p.status === "Clôturé").length}
+                  {projects.filter((p) => p.status === "Cloturé").length}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t">
@@ -265,7 +269,7 @@ export default function DashboardOverview() {
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
                         <Progress value={project.progress} className="h-2 w-24" />
-                        <span className="text-xs text-gray-600">{project.progress}%</span>
+                        <span className="text-xs text-gray-600">{formatProgressValue(project.progress)}%</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">

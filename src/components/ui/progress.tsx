@@ -10,6 +10,9 @@ function Progress({
   value,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+  // Convert decimal (0-1) to percentage (0-100) if needed
+  const percentValue = value !== undefined && value <= 1 ? value * 100 : (value || 0);
+  
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -22,7 +25,7 @@ function Progress({
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
         className="bg-primary h-full w-full flex-1 transition-all"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        style={{ transform: `translateX(-${100 - percentValue}%)` }}
       />
     </ProgressPrimitive.Root>
   );

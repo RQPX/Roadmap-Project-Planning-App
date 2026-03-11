@@ -1,26 +1,28 @@
 import { useState } from "react";
-import { Button } from "../ui/button";
 import { Plus, Info } from "lucide-react";
+import { Button } from "../ui/button";
 import { Project, Status, statusColors, priorityColors } from "../../types/project";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { ProjectModal } from "../ProjectModal";
 import { ScrollArea } from "../ui/scroll-area";
+import { Card, CardHeader, CardContent } from "../ui/card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProjects } from "../../contexts/ProjectsContext";
-import { toast } from "sonner@2.0.3";
 import { Alert, AlertDescription } from "../ui/alert";
+import { formatProgressValue } from "../../utils/formatProgress";
+import { toast } from "sonner@2.0.3";
 
 const allStatuses: Status[] = [
-  "Non démarré",
-  "En étude",
+  "Non demarre",
+  "En etude",
   "En exécution",
   "En attente de Go pour production",
   "En production",
   "En service",
   "En pause",
-  "Clôturé",
-  "Abandonné",
+  "Cloturé",
+  "Abandonne",
 ];
 
 export default function ProjectsKanban() {
@@ -113,8 +115,8 @@ export default function ProjectsKanban() {
       )}
 
       {/* Kanban Board */}
-      <ScrollArea className="w-full">
-        <div className="flex space-x-4 pb-4 min-w-max max-w-[1600px] mx-auto">
+      <div className="w-full overflow-x-auto">
+        <div className="flex space-x-4 pb-4 min-w-max px-6">
           {allStatuses.map((status) => {
             const statusProjects = projects.filter((p) => p.status === status);
             return (
@@ -173,9 +175,9 @@ export default function ProjectsKanban() {
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-xs text-gray-600">
                           <span>Avancement</span>
-                          <span className="font-medium">{project.progress}%</span>
+                          <span className="font-medium">{formatProgressValue(project.progress)}%</span>
                         </div>
-                        <Progress value={project.progress} className="h-1.5" />
+                        <Progress value={formatProgressValue(project.progress)} className="h-1.5" />
                       </div>
 
                       <div className="text-xs text-gray-600">
@@ -189,7 +191,7 @@ export default function ProjectsKanban() {
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Project Modal */}
       <ProjectModal

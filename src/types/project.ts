@@ -8,13 +8,13 @@
 
 export type Status =
   | "En exécution"
-  | "En étude"
-  | "Clôturé"
+  | "En etude"
+  | "Cloturé"
   | "En attente de Go pour production"
   | "En production"
   | "En pause"
-  | "Non démarré"
-  | "Abandonné"
+  | "Non demarre"
+  | "Abandonne"
   | "En service";
 
 export type Priority = "Haute" | "Moyenne" | "Basse";
@@ -61,13 +61,13 @@ export interface Project {
  */
 export const statusColors: Record<Status, string> = {
   "En exécution": "#F59E0B", // Yellow/Beige
-  "En étude": "#9333EA", // Purple
-  "Clôturé": "#60A5FA", // Light Blue
+  "En etude": "#9333EA", // Purple
+  "Cloturé": "#60A5FA", // Light Blue
   "En attente de Go pour production": "#86EFAC", // Light Green
   "En production": "#16A34A", // Dark Green
   "En pause": "#6B7280", // Gray
-  "Non démarré": "#94A3B8", // Gray-blue
-  "Abandonné": "#DC2626", // Deep Red
+  "Non demarre": "#94A3B8", // Gray-blue
+  "Abandonne": "#DC2626", // Deep Red
   "En service": "#22C55E", // Bright Green
 };
 

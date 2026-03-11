@@ -5,13 +5,11 @@ import ProjectsKanban from "./components/screens/ProjectsKanban";
 import TimelineGantt from "./components/screens/TimelineGantt";
 import { Login } from "./components/screens/Login";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { AuthWrapper } from "./components/AuthWrapper";
 
 /**
  * ROUTER CONFIGURATION
  * 
  * Structure:
- * - AuthWrapper wraps everything (provides AuthProvider)
  * - /login - Public login page
  * - / - Protected routes (wrapped in ProtectedRoute)
  *   - Dashboard, Kanban, Timeline
@@ -19,16 +17,14 @@ import { AuthWrapper } from "./components/AuthWrapper";
 
 export const router = createBrowserRouter([
   {
-    element: <AuthWrapper><Login /></AuthWrapper>,
+    element: <Login />,
     path: "/login",
   },
   {
     element: (
-      <AuthWrapper>
-        <ProtectedRoute>
-          <Root />
-        </ProtectedRoute>
-      </AuthWrapper>
+      <ProtectedRoute>
+        <Root />
+      </ProtectedRoute>
     ),
     path: "/",
     children: [

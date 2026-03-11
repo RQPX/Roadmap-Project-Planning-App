@@ -27,15 +27,15 @@ interface ProjectModalProps {
 
 const departments: Department[] = ["DSI", "DAF", "RH", "DGP", "DDEV"];
 const statuses: Status[] = [
-  "Non démarré",
-  "En étude",
+  "Non demarre",
+  "En etude",
   "En exécution",
   "En attente de Go pour production",
   "En production",
   "En service",
   "En pause",
-  "Clôturé",
-  "Abandonné",
+  "Cloturé",
+  "Abandonne",
 ];
 const priorities: Priority[] = ["Basse", "Moyenne", "Haute"];
 
@@ -50,7 +50,7 @@ export function ProjectModal({
   const [formData, setFormData] = useState<Partial<Project>>({
     name: "",
     department: "DSI",
-    status: "Non démarré",
+    status: "Non demarre",
     priority: "Moyenne",
     progress: 0,
     projectManager: "",
@@ -68,7 +68,7 @@ export function ProjectModal({
       setFormData({
         name: "",
         department: "DSI",
-        status: "Non démarré",
+        status: "Non demarre",
         priority: "Moyenne",
         progress: 0,
         projectManager: "",

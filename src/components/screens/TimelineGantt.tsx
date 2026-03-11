@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import {
@@ -14,6 +14,7 @@ import { useProjects } from "../../contexts/ProjectsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Info } from "lucide-react";
+import { formatProgressValue } from "../../utils/formatProgress";
 
 export default function TimelineGantt() {
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
@@ -50,33 +51,98 @@ export default function TimelineGantt() {
     return acc;
   }, {} as Record<string, typeof projects>);
 
+  // Calculate dynamic timeline range based on all projects (memoized)
+  const { timelineStart, timelineEnd, weeks } = useMemo(() => {
+    // Calculate timeline range
+    const getTimelineRange = () => {
+      if (projects.length === 0) {
+        return {
+          start: new Date("2026-01-01"),
+          end: new Date("2026-12-31"),
+        };
+      }
+
+      try {
+        const allDates = projects
+          .filter(p => p.startDate && p.endDate)
+          .flatMap(p => [
+            new Date(p.startDate),
+            new Date(p.endDate),
+          ])
+          .filter(d => !isNaN(d.getTime())); // Filter out invalid dates
+
+        if (allDates.length === 0) {
+          return {
+            start: new Date("2026-01-01"),
+            end: new Date("2026-12-31"),
+          };
+        }
+
+        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+        // Add padding: 1 month before earliest start, 1 month after latest end
+        const timelineStart = new Date(minDate);
+        timelineStart.setMonth(timelineStart.getMonth() - 1);
+        timelineStart.setDate(1); // Start of month
+
+        const timelineEnd = new Date(maxDate);
+        timelineEnd.setMonth(timelineEnd.getMonth() + 1);
+
+        return { start: timelineStart, end: timelineEnd };
+      } catch (error) {
+        console.error("Error calculating timeline range:", error);
+        return {
+          start: new Date("2026-01-01"),
+          end: new Date("2026-12-31"),
+        };
+      }
+    };
+
+    const { start: timelineStart, end: timelineEnd } = getTimelineRange();
+
+    // Generate week markers for timeline header
+    const weeks: Date[] = [];
+    try {
+      for (let d = new Date(timelineStart); d <= timelineEnd; d.setDate(d.getDate() + 7)) {
+        weeks.push(new Date(d));
+        // Prevent infinite loop
+        if (weeks.length > 104) break; // Max 2 years of weeks
+      }
+    } catch (error) {
+      console.error("Error generating week markers:", error);
+    }
+
+    return { timelineStart, timelineEnd, weeks };
+  }, [projects]);
+
   // Calculate position on timeline
   const getProjectPosition = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const timelineStart = new Date("2026-01-01");
-    const timelineEnd = new Date("2026-04-30");
+    try {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-    const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
-    const projectStart = start.getTime() - timelineStart.getTime();
-    const projectDuration = end.getTime() - start.getTime();
+      // Validate dates
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return { left: "0%", width: "0%" };
+      }
 
-    const left = Math.max(0, (projectStart / totalDuration) * 100);
-    const width = Math.min(
-      100 - left,
-      (projectDuration / totalDuration) * 100
-    );
+      const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
+      const projectStart = start.getTime() - timelineStart.getTime();
+      const projectDuration = end.getTime() - start.getTime();
 
-    return { left: `${left}%`, width: `${width}%` };
+      const left = Math.max(0, (projectStart / totalDuration) * 100);
+      const width = Math.min(
+        100 - left,
+        Math.max(1, (projectDuration / totalDuration) * 100) // Minimum 1% width
+      );
+
+      return { left: `${left}%`, width: `${width}%` };
+    } catch (error) {
+      console.error("Error calculating project position:", error);
+      return { left: "0%", width: "0%" };
+    }
   };
-
-  // Generate week markers for timeline header
-  const weeks: Date[] = [];
-  const startWeek = new Date("2026-01-01");
-  const endWeek = new Date("2026-04-30");
-  for (let d = new Date(startWeek); d <= endWeek; d.setDate(d.getDate() + 7)) {
-    weeks.push(new Date(d));
-  }
 
   return (
     <div className="p-6 space-y-6">
@@ -120,8 +186,8 @@ export default function TimelineGantt() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="Non démarré">Non démarré</SelectItem>
-                <SelectItem value="En étude">En étude</SelectItem>
+                <SelectItem value="Non demarre">Non demarre</SelectItem>
+                <SelectItem value="En etude">En etude</SelectItem>
                 <SelectItem value="En exécution">En exécution</SelectItem>
                 <SelectItem value="En attente de Go pour production">
                   En attente de Go pour production
@@ -129,8 +195,8 @@ export default function TimelineGantt() {
                 <SelectItem value="En production">En production</SelectItem>
                 <SelectItem value="En service">En service</SelectItem>
                 <SelectItem value="En pause">En pause</SelectItem>
-                <SelectItem value="Clôturé">Clôturé</SelectItem>
-                <SelectItem value="Abandonné">Abandonné</SelectItem>
+                <SelectItem value="Cloturé">Cloturé</SelectItem>
+                <SelectItem value="Abandonne">Abandonne</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -227,7 +293,7 @@ export default function TimelineGantt() {
                               }}
                             >
                               <span className="text-xs text-white font-medium truncate">
-                                {project.progress}%
+                                {formatProgressValue(project.progress)}%
                               </span>
                             </div>
                           </div>
