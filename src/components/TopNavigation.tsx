@@ -4,7 +4,6 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth } from "../contexts/AuthContext";
 import { useProjects } from "../contexts/ProjectsContext";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { toast } from "sonner@2.0.3";
 import { Alert, AlertDescription } from "./ui/alert";
 
@@ -24,7 +23,6 @@ export function TopNavigation() {
     toast.success("Déconnexion réussie");
   };
 
-  // Get user initials
   const getUserInitials = () => {
     if (!user) return "U";
     return user.name
@@ -37,7 +35,6 @@ export function TopNavigation() {
 
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-3">
-      {/* Mock Data Warning */}
       {usingMockData && (
         <div className="max-w-[1600px] mx-auto mb-2">
           <Alert variant="default" className="bg-amber-50 border-amber-200">
@@ -48,7 +45,6 @@ export function TopNavigation() {
           </Alert>
         </div>
       )}
-
       <div className="max-w-[1600px] mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-8">
           {navItems.map((item) => {
@@ -57,7 +53,6 @@ export function TopNavigation() {
               item.path === "/"
                 ? location.pathname === "/"
                 : location.pathname.startsWith(item.path);
-
             return (
               <Link
                 key={item.path}
@@ -74,14 +69,7 @@ export function TopNavigation() {
             );
           })}
         </div>
-
         <div className="flex items-center space-x-4">
-          {/* Role Badge */}
-          <Badge variant={isAdmin ? "default" : "secondary"} className="text-xs">
-            {isAdmin ? "Administrateur" : "Directeur"}
-          </Badge>
-
-          {/* User Avatar and Name */}
           <div className="flex items-center space-x-3">
             <Avatar className={`h-9 w-9 ${isAdmin ? "bg-blue-600" : "bg-gray-600"}`}>
               <AvatarFallback className={`${isAdmin ? "bg-blue-600" : "bg-gray-600"} text-white text-sm`}>
@@ -97,8 +85,6 @@ export function TopNavigation() {
               )}
             </div>
           </div>
-
-          {/* Logout Button */}
           <Button
             variant="ghost"
             size="sm"
