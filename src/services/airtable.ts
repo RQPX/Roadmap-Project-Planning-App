@@ -19,7 +19,7 @@
  * - Etat d'avancement (Number: 0-100)
  * - Chef de Projet (Single line text)
  * - Partenaires au Projet (Long text)
- * - Debut de Projet (Date)
+ * - Debut du projet (Date)
  * - Fin Prevue du Projet (Date)
  * - Commentaire (Long text)
  * - Indicateur de Retard (Checkbox)
@@ -45,7 +45,7 @@ const FIELD_MAPPING = {
   "Etat d'avancement": "progress",
   "Chef de Projet": "projectManager",
   "Partenaires au Projet": "partners",
-  "Debut de Projet": "startDate",
+  "Debut du projet": "startDate",
   "Fin Prevue du Projet": "endDate",
   "Commentaire": "comments",
   "Indicateur de Retard": "isDelayed",

@@ -16,6 +16,9 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { Info } from "lucide-react";
 import { formatProgressValue } from "../../utils/formatProgress";
 
+// Fixed width per week in pixels
+const WEEK_WIDTH = 100;
+
 export default function TimelineGantt() {
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -116,7 +119,7 @@ export default function TimelineGantt() {
     return { timelineStart, timelineEnd, weeks };
   }, [projects]);
 
-  // Calculate position on timeline
+  // Calculate position on timeline using fixed pixel widths
   const getProjectPosition = (startDate: string, endDate: string) => {
     try {
       const start = new Date(startDate);
@@ -124,23 +127,26 @@ export default function TimelineGantt() {
 
       // Validate dates
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return { left: "0%", width: "0%" };
+        return { left: "0px", width: "0px" };
       }
 
       const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
+      const totalWidth = weeks.length * WEEK_WIDTH;
+      
       const projectStart = start.getTime() - timelineStart.getTime();
       const projectDuration = end.getTime() - start.getTime();
 
-      const left = Math.max(0, (projectStart / totalDuration) * 100);
-      const width = Math.min(
-        100 - left,
-        Math.max(1, (projectDuration / totalDuration) * 100) // Minimum 1% width
+      // Calculate pixel positions
+      const left = Math.max(0, (projectStart / totalDuration) * totalWidth);
+      const width = Math.max(
+        WEEK_WIDTH * 0.5, // Minimum half a week width
+        (projectDuration / totalDuration) * totalWidth
       );
 
-      return { left: `${left}%`, width: `${width}%` };
+      return { left: `${left}px`, width: `${width}px` };
     } catch (error) {
       console.error("Error calculating project position:", error);
-      return { left: "0%", width: "0%" };
+      return { left: "0px", width: "0px" };
     }
   };
 
@@ -241,13 +247,14 @@ export default function TimelineGantt() {
 
             {/* Right Panel - Timeline */}
             <div className="flex-1 overflow-x-auto">
-              <div className="min-w-[800px]">
+              <div style={{ width: `${weeks.length * WEEK_WIDTH}px` }}>
                 {/* Timeline Header */}
                 <div className="h-12 border-b border-gray-200 flex bg-gray-50">
                   {weeks.map((week, index) => (
                     <div
                       key={index}
-                      className="flex-1 border-r border-gray-200 px-2 py-2 text-xs text-center"
+                      className="border-r border-gray-200 px-2 py-2 text-xs text-center flex-shrink-0"
+                      style={{ width: `${WEEK_WIDTH}px` }}
                     >
                       <div className="font-medium">
                         {week.toLocaleDateString("fr-FR", {
@@ -264,11 +271,15 @@ export default function TimelineGantt() {
                   <div className="relative">
                     {Object.entries(projectsByDept).map(([dept, projects]) => (
                       <div key={dept}>
-                        <div className="h-8 bg-blue-50 border-b border-gray-100" />
+                        <div 
+                          className="h-8 bg-blue-50 border-b border-gray-100" 
+                          style={{ width: `${weeks.length * WEEK_WIDTH}px` }}
+                        />
                         {projects.map((project) => (
                           <div
                             key={project.id}
                             className="h-[52px] border-b border-gray-100 relative"
+                            style={{ width: `${weeks.length * WEEK_WIDTH}px` }}
                           >
                             {/* Grid lines */}
                             {weeks.map((_, index) => (
@@ -276,7 +287,7 @@ export default function TimelineGantt() {
                                 key={index}
                                 className="absolute border-r border-gray-200 h-full"
                                 style={{
-                                  left: `${(index / weeks.length) * 100}%`,
+                                  left: `${index * WEEK_WIDTH}px`,
                                 }}
                               />
                             ))}

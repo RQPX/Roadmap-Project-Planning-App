@@ -16,6 +16,7 @@ import { Project, Status, Priority, Department } from "../types/project";
 import { toast } from "sonner@2.0.3";
 import { useAuth } from "../contexts/AuthContext";
 import { Badge } from "./ui/badge";
+import { formatProgressValue } from "../utils/formatProgress";
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -264,13 +265,13 @@ export function ProjectModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="progress">Taux d'Avancement</Label>
-              <span className="text-sm font-medium">{formData.progress}%</span>
+              <span className="text-sm font-medium">{formatProgressValue(formData.progress || 0)}%</span>
             </div>
             <Slider
               id="progress"
-              value={[formData.progress || 0]}
+              value={[formatProgressValue(formData.progress || 0)]}
               onValueChange={([value]) =>
-                setFormData({ ...formData, progress: value })
+                setFormData({ ...formData, progress: value / 100 })
               }
               min={0}
               max={100}
