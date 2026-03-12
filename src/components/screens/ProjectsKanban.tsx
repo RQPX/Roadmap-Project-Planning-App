@@ -33,7 +33,6 @@ export default function ProjectsKanban() {
   const [activeStatusIndex, setActiveStatusIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Reset page quand on change d'onglet
   useEffect(() => { setCurrentPage(0); }, [activeStatusIndex]);
 
   const handleAddProject = () => {
@@ -81,6 +80,8 @@ export default function ProjectsKanban() {
   return (
     <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
 
+      <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+
       {/* En-tête */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#111827" }}>Gestion des Projets</h1>
@@ -104,8 +105,17 @@ export default function ProjectsKanban() {
         </div>
       )}
 
-      {/* Onglets de statut — scroll horizontal */}
-      <div style={{ overflowX: "auto", paddingBottom: "8px", marginBottom: "20px" }}>
+      {/* Onglets de statut — scroll horizontal sans barre visible */}
+      <div
+        className="hide-scrollbar"
+        style={{
+          overflowX: "auto",
+          paddingBottom: "8px",
+          marginBottom: "20px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        } as React.CSSProperties}
+      >
         <div style={{ display: "flex", gap: "8px", minWidth: "max-content" }}>
           {allStatuses.map((status, index) => {
             const count = projects.filter((p) => p.status === status).length;
@@ -204,7 +214,8 @@ export default function ProjectsKanban() {
             disabled={currentPage === 0}
             style={{
               padding: "6px", borderRadius: "6px", border: "none", background: "none",
-              cursor: currentPage === 0 ? "not-allowed" : "pointer", opacity: currentPage === 0 ? 0.3 : 1,
+              cursor: currentPage === 0 ? "not-allowed" : "pointer",
+              opacity: currentPage === 0 ? 0.3 : 1,
             }}
           >
             <ChevronLeft style={{ width: 18, height: 18, color: "#374151" }} />
