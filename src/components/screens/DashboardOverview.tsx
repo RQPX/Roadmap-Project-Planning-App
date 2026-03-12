@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Progress } from "../ui/progress";
 import { AlertCircle, Activity, TrendingUp, Info } from "lucide-react";
@@ -12,14 +13,24 @@ import { formatProgressValue, isProjectDelayed } from "../../utils/formatProgres
 export default function DashboardOverview() {
   const { isDirecteur } = useAuth();
   const { projects, loading } = useProjects();
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
+  const [isLarge, setIsLarge] = useState(window.innerWidth >= 1024);
 
-  // Skeleton de chargement pendant la récupération des données Airtable
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+      setIsLarge(window.innerWidth >= 1024);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   if (loading) {
     return (
-      <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
+      <div style={{ padding: "24px", maxWidth: "1600px", margin: "0 auto" }}>
         <div className="animate-pulse space-y-6">
           <div className="h-10 bg-gray-200 rounded w-1/3"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr", gap: "16px" }}>
             <div className="h-32 bg-gray-200 rounded"></div>
             <div className="h-32 bg-gray-200 rounded"></div>
             <div className="h-32 bg-gray-200 rounded"></div>
@@ -29,7 +40,6 @@ export default function DashboardOverview() {
     );
   }
 
-  // Calcul des KPIs
   const activeProjects = projects.filter(
     (p) => p.status === "En exécution" || p.status === "En production" || p.status === "En etude"
   ).length;
@@ -43,7 +53,6 @@ export default function DashboardOverview() {
 
   const averageProgressPercent = formatProgressValue(averageProgress);
 
-  // Données pour le graphique camembert
   const statusDistribution = Object.entries(
     projects.reduce((acc, project) => {
       acc[project.status] = (acc[project.status] || 0) + 1;
@@ -55,42 +64,40 @@ export default function DashboardOverview() {
     color: statusColors[status as keyof typeof statusColors],
   }));
 
-  // 8 projets les plus récents (triés par date de fin)
   const recentlyUpdated = [...projects]
     .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
     .slice(0, 8);
 
   return (
-    // padding réduit sur mobile (p-4), normal sur desktop (md:p-6)
-    <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6">
+    <div style={{ padding: isDesktop ? "24px" : "16px", maxWidth: "1600px", margin: "0 auto" }}>
 
-      {/* Titre */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ fontSize: isDesktop ? "30px" : "22px", fontWeight: 600, color: "#111827" }}>
           Vue d'ensemble des Projets
         </h1>
       </div>
 
-      {/* Bandeau lecture seule pour les directeurs */}
       {isDirecteur && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-900 text-sm">
-            Vous êtes en mode lecture seule. Les statistiques affichées sont à jour mais vous ne pouvez pas modifier les données.
-          </AlertDescription>
-        </Alert>
+        <div style={{ marginBottom: "16px" }}>
+          <Alert className="bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900 text-sm">
+              Vous êtes en mode lecture seule. Les statistiques affichées sont à jour mais vous ne pouvez pas modifier les données.
+            </AlertDescription>
+          </Alert>
+        </div>
       )}
 
-      {/* KPI Cards : 1 colonne sur mobile, 3 sur desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr", gap: "16px", marginBottom: "24px" }}>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">Projets Actifs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-3">
-              <Activity className="h-7 w-7 md:h-8 md:w-8 text-blue-600" />
-              <div className="text-3xl md:text-4xl font-bold text-gray-900">{activeProjects}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Activity style={{ width: isDesktop ? 32 : 28, height: isDesktop ? 32 : 28, color: "#2563eb" }} />
+              <div style={{ fontSize: isDesktop ? "36px" : "30px", fontWeight: 700, color: "#111827" }}>{activeProjects}</div>
             </div>
           </CardContent>
         </Card>
@@ -100,9 +107,9 @@ export default function DashboardOverview() {
             <CardTitle className="text-sm font-medium text-gray-600">Projets en Retard</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="h-7 w-7 md:h-8 md:w-8 text-red-600" />
-              <div className="text-3xl md:text-4xl font-bold text-red-600">{delayedProjects}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <AlertCircle style={{ width: isDesktop ? 32 : 28, height: isDesktop ? 32 : 28, color: "#dc2626" }} />
+              <div style={{ fontSize: isDesktop ? "36px" : "30px", fontWeight: 700, color: "#dc2626" }}>{delayedProjects}</div>
             </div>
           </CardContent>
         </Card>
@@ -111,26 +118,23 @@ export default function DashboardOverview() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">Taux d'Avancement Moyen</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <TrendingUp className="h-7 w-7 md:h-8 md:w-8 text-green-600" />
-              <div className="text-3xl md:text-4xl font-bold text-gray-900">{averageProgressPercent}%</div>
+          <CardContent style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <TrendingUp style={{ width: isDesktop ? 32 : 28, height: isDesktop ? 32 : 28, color: "#16a34a" }} />
+              <div style={{ fontSize: isDesktop ? "36px" : "30px", fontWeight: 700, color: "#111827" }}>{averageProgressPercent}%</div>
             </div>
             <Progress value={averageProgress} className="h-2" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Graphique + Statistiques : empilés sur mobile, côte à côte sur desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-
-        {/* Camembert répartition par statut */}
+      {/* Graphique + Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: isLarge ? "repeat(2, 1fr)" : "1fr", gap: "24px", marginBottom: "24px" }}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base md:text-lg">Répartition par Statut</CardTitle>
+            <CardTitle style={{ fontSize: isDesktop ? "18px" : "16px" }}>Répartition par Statut</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Hauteur réduite sur mobile */}
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
@@ -138,9 +142,7 @@ export default function DashboardOverview() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ percent }) =>
-                    percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ""
-                  }
+                  label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ""}
                   outerRadius={90}
                   dataKey="value"
                 >
@@ -149,25 +151,20 @@ export default function DashboardOverview() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value) => <span className="text-xs">{value}</span>}
-                />
+                <Legend verticalAlign="bottom" height={36} formatter={(value) => <span style={{ fontSize: "12px" }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Statistiques rapides avec tous les statuts */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base md:text-lg">Statistiques Rapides</CardTitle>
+            <CardTitle style={{ fontSize: isDesktop ? "18px" : "16px" }}>Statistiques Rapides</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <span className="text-sm font-semibold text-gray-700">Total Projets</span>
-              <span className="text-lg font-bold">{projects.length}</span>
+          <CardContent style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid #e5e7eb" }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "#374151" }}>Total Projets</span>
+              <span style={{ fontSize: "18px", fontWeight: 700 }}>{projects.length}</span>
             </div>
             {[
               { label: "En exécution",   status: "En exécution",                     color: "#F59E0B" },
@@ -182,71 +179,67 @@ export default function DashboardOverview() {
             ].map(({ label, status, color }) => {
               const count = projects.filter((p) => p.status === status).length;
               return (
-                <div key={status} className="flex justify-between items-center py-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                    <span className="text-sm text-gray-600">{label}</span>
+                <div key={status} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color, flexShrink: 0 }} />
+                    <span style={{ fontSize: "14px", color: "#4b5563" }}>{label}</span>
                   </div>
-                  <span className={`text-sm font-semibold ${count === 0 ? "text-gray-300" : "text-gray-800"}`}>
-                    {count}
-                  </span>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: count === 0 ? "#d1d5db" : "#1f2937" }}>{count}</span>
                 </div>
               );
             })}
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="text-sm text-gray-600">En retard</span>
-              <span className={`text-sm font-semibold ${delayedProjects > 0 ? "text-red-600" : "text-gray-300"}`}>
-                {delayedProjects}
-              </span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px solid #e5e7eb" }}>
+              <span style={{ fontSize: "14px", color: "#4b5563" }}>En retard</span>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: delayedProjects > 0 ? "#dc2626" : "#d1d5db" }}>{delayedProjects}</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tableau récemment mis à jour — scroll horizontal sur mobile */}
+      {/* Tableau */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base md:text-lg">Récemment Mis à Jour</CardTitle>
+          <CardTitle style={{ fontSize: isDesktop ? "18px" : "16px" }}>Récemment Mis à Jour</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[500px]">
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: "500px", borderCollapse: "collapse" }}>
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Nom du Projet</th>
-                  {/* Colonnes masquées sur très petits écrans */}
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 hidden sm:table-cell">Département</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Statut</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Avancement</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 hidden md:table-cell">Date Fin Prévue</th>
+                <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ textAlign: "left", padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#4b5563" }}>Nom du Projet</th>
+                  {isDesktop && <th style={{ textAlign: "left", padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#4b5563" }}>Département</th>}
+                  <th style={{ textAlign: "left", padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#4b5563" }}>Statut</th>
+                  <th style={{ textAlign: "left", padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#4b5563" }}>Avancement</th>
+                  {isDesktop && <th style={{ textAlign: "left", padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#4b5563" }}>Date Fin Prévue</th>}
                 </tr>
               </thead>
               <tbody>
                 {recentlyUpdated.map((project) => (
-                  <tr key={project.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900 max-w-[180px] truncate">
+                  <tr key={project.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "12px 16px", fontSize: "14px", fontWeight: 500, color: "#111827", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {project.name}
                     </td>
-                    <td className="py-3 px-4 hidden sm:table-cell">
-                      <Badge variant="outline" className="text-xs">{project.department}</Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        style={{ backgroundColor: statusColors[project.status], color: "white" }}
-                        className="text-xs whitespace-nowrap"
-                      >
+                    {isDesktop && (
+                      <td style={{ padding: "12px 16px" }}>
+                        <Badge variant="outline" className="text-xs">{project.department}</Badge>
+                      </td>
+                    )}
+                    <td style={{ padding: "12px 16px" }}>
+                      <Badge style={{ backgroundColor: statusColors[project.status], color: "white", fontSize: "12px", whiteSpace: "nowrap" }}>
                         {project.status}
                       </Badge>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
-                        <Progress value={formatProgressValue(project.progress)} className="h-2 w-16 md:w-24" />
-                        <span className="text-xs text-gray-600">{formatProgressValue(project.progress)}%</span>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Progress value={formatProgressValue(project.progress)} className="h-2" style={{ width: isDesktop ? "96px" : "64px" }} />
+                        <span style={{ fontSize: "12px", color: "#4b5563" }}>{formatProgressValue(project.progress)}%</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600 hidden md:table-cell">
-                      {new Date(project.endDate).toLocaleDateString("fr-FR")}
-                    </td>
+                    {isDesktop && (
+                      <td style={{ padding: "12px 16px", fontSize: "14px", color: "#4b5563" }}>
+                        {new Date(project.endDate).toLocaleDateString("fr-FR")}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
