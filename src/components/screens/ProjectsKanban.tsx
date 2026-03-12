@@ -88,7 +88,7 @@ export default function ProjectsKanban() {
         {isAdmin && (
           <Button onClick={handleAddProject} size="sm" className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
-            + Ajouter un Nouveau Projet
+              Ajouter un Nouveau Projet
           </Button>
         )}
       </div>
