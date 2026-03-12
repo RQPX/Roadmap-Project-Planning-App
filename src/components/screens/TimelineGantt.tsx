@@ -7,7 +7,7 @@ import { statusColors } from "../../types/project";
 import { useProjects } from "../../contexts/ProjectsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Info, ChevronLeft, ChevronRight } from "lucide-react";
+import { Info } from "lucide-react";
 import { formatProgressValue } from "../../utils/formatProgress";
 
 const WEEK_WIDTH = 60;
@@ -78,6 +78,8 @@ export default function TimelineGantt() {
     start.setDate(start.getDate() - 14);
     start.setDate(1);
     end = new Date(end);
+    // S'assurer que 2026 est toujours inclus
+    end = new Date(Math.max(end.getTime(), new Date("2026-12-31").getTime()));
     end.setDate(end.getDate() + 30);
 
     const weeks: Date[] = [];
@@ -136,7 +138,6 @@ export default function TimelineGantt() {
     for (const project of deptProjects) rows.push({ type: "project", project });
   }
 
-  // Naviguer vers une année : calcule le scrollLeft correspondant
   const scrollToYear = (year: number) => {
     const targetWeekIndex = weeks.findIndex((w) => w.getFullYear() === year);
     if (targetWeekIndex >= 0 && rightPanelRef.current) {
@@ -146,7 +147,6 @@ export default function TimelineGantt() {
     }
   };
 
-  // Grouper les semaines par mois pour l'en-tête
   const monthGroups: { label: string; year: number; weekCount: number }[] = [];
   weeks.forEach((week) => {
     const month = week.toLocaleDateString("fr-FR", { month: "short" });
@@ -161,6 +161,9 @@ export default function TimelineGantt() {
 
   return (
     <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
+
+      <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+
       <div style={{ marginBottom: "16px" }}>
         <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#111827", marginBottom: "12px" }}>
           Chronogramme Global
@@ -251,14 +254,14 @@ export default function TimelineGantt() {
 
             {/* PANNEAU GAUCHE */}
             <div style={{ flexShrink: 0, borderRight: "1px solid #e5e7eb", width: `${NAME_PANEL_WIDTH}px` }}>
-              {/* En-tête double ligne : Année / Mois */}
               <div style={{ height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", padding: "0 12px", fontWeight: 500, fontSize: "13px", color: "#374151" }}>
                 Projets
               </div>
               <div
                 ref={leftPanelRef}
                 onScroll={handleLeftScroll}
-                style={{ height: "450px", overflowY: "auto", overflowX: "hidden" }}
+                className="hide-scrollbar"
+                style={{ height: "450px", overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
               >
                 {rows.map((row, i) =>
                   row.type === "dept" ? (
@@ -288,16 +291,15 @@ export default function TimelineGantt() {
             {/* PANNEAU DROIT */}
             <div style={{ flex: 1, overflow: "hidden" }}>
 
-              {/* En-tête double ligne : Année en haut, Mois en bas */}
+              {/* En-tête : Année + Mois */}
               <div
                 ref={headerRef}
                 style={{ overflowX: "hidden", height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}
               >
                 <div style={{ width: `${totalTimelineWidth}px` }}>
-
                   {/* Ligne 1 : Années */}
                   <div style={{ display: "flex", height: "28px", borderBottom: "1px solid #e5e7eb" }}>
-                    {monthGroups.reduce((acc, group, i) => {
+                    {monthGroups.reduce((acc, group) => {
                       const prev = acc[acc.length - 1];
                       if (prev && prev.year === group.year) {
                         prev.weekCount += group.weekCount;
@@ -325,7 +327,6 @@ export default function TimelineGantt() {
                       </div>
                     ))}
                   </div>
-
                   {/* Ligne 2 : Mois */}
                   <div style={{ display: "flex", height: "36px" }}>
                     {monthGroups.map((group, i) => (
@@ -350,11 +351,18 @@ export default function TimelineGantt() {
                 </div>
               </div>
 
-              {/* Zone des barres */}
+              {/* Zone des barres — scrollbar masquée */}
               <div
                 ref={rightPanelRef}
                 onScroll={handleRightScroll}
-                style={{ height: "450px", overflowY: "auto", overflowX: "auto" }}
+                className="hide-scrollbar"
+                style={{
+                  height: "450px",
+                  overflowY: "auto",
+                  overflowX: "auto",
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                } as React.CSSProperties}
               >
                 <div style={{ width: `${totalTimelineWidth}px` }}>
                   {rows.map((row, i) =>
