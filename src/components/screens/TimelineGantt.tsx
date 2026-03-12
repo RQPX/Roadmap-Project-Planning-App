@@ -7,19 +7,15 @@ import { statusColors } from "../../types/project";
 import { useProjects } from "../../contexts/ProjectsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Info } from "lucide-react";
+import { Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatProgressValue } from "../../utils/formatProgress";
 
-// Dimensions du Gantt
-// Sur mobile on réduit la largeur des semaines pour afficher plus de contenu
 const WEEK_WIDTH = 60;
 const ROW_HEIGHT = 52;
 const DEPT_ROW_HEIGHT = 32;
-// Panneau des noms : plus étroit sur mobile
 const NAME_PANEL_WIDTH_DESKTOP = 280;
 const NAME_PANEL_WIDTH_MOBILE = 140;
 
-// Convertit une chaîne de date en objet Date local (sans décalage UTC)
 function parseDate(dateStr: string | undefined | null): Date | null {
   if (!dateStr) return null;
   try {
@@ -45,13 +41,12 @@ export default function TimelineGantt() {
   const { projects, loading } = useProjects();
   const { isDirecteur } = useAuth();
 
-  // Détection mobile via largeur d'écran
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const NAME_PANEL_WIDTH = isMobile ? NAME_PANEL_WIDTH_MOBILE : NAME_PANEL_WIDTH_DESKTOP;
 
-  // Références pour synchroniser le scroll vertical des deux panneaux
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const handleLeftScroll = () => {
     if (rightPanelRef.current && leftPanelRef.current)
@@ -60,12 +55,13 @@ export default function TimelineGantt() {
   const handleRightScroll = () => {
     if (leftPanelRef.current && rightPanelRef.current)
       leftPanelRef.current.scrollTop = rightPanelRef.current.scrollTop;
+    if (headerRef.current && rightPanelRef.current)
+      headerRef.current.scrollLeft = rightPanelRef.current.scrollLeft;
   };
 
-  // IMPORTANT : useMemo avant tout return conditionnel (règle des hooks React)
-  const { timelineStart, weeks } = useMemo(() => {
+  const { timelineStart, weeks, availableYears } = useMemo(() => {
     if (!projects || projects.length === 0)
-      return { timelineStart: new Date("2021-01-01"), weeks: [] };
+      return { timelineStart: new Date("2021-01-01"), weeks: [], availableYears: [] };
 
     const allDates = projects
       .flatMap((p) => [parseDate(p.startDate), parseDate(p.endDate)])
@@ -89,10 +85,12 @@ export default function TimelineGantt() {
       weeks.push(new Date(d));
       if (weeks.length > 260) break;
     }
-    return { timelineStart: start, weeks };
+
+    const years = Array.from(new Set(weeks.map((w) => w.getFullYear()))).sort();
+
+    return { timelineStart: start, weeks, availableYears: years };
   }, [projects]);
 
-  // Skeleton de chargement — après tous les hooks
   if (loading) {
     return (
       <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
@@ -138,14 +136,38 @@ export default function TimelineGantt() {
     for (const project of deptProjects) rows.push({ type: "project", project });
   }
 
-  return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <div className="max-w-[1600px] mx-auto space-y-4">
-        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">Chronogramme Global</h1>
+  // Naviguer vers une année : calcule le scrollLeft correspondant
+  const scrollToYear = (year: number) => {
+    const targetWeekIndex = weeks.findIndex((w) => w.getFullYear() === year);
+    if (targetWeekIndex >= 0 && rightPanelRef.current) {
+      const scrollLeft = targetWeekIndex * WEEK_WIDTH;
+      rightPanelRef.current.scrollLeft = scrollLeft;
+      if (headerRef.current) headerRef.current.scrollLeft = scrollLeft;
+    }
+  };
 
-        {/* Bandeau lecture seule */}
+  // Grouper les semaines par mois pour l'en-tête
+  const monthGroups: { label: string; year: number; weekCount: number }[] = [];
+  weeks.forEach((week) => {
+    const month = week.toLocaleDateString("fr-FR", { month: "short" });
+    const year = week.getFullYear();
+    const last = monthGroups[monthGroups.length - 1];
+    if (last && last.label === month && last.year === year) {
+      last.weekCount++;
+    } else {
+      monthGroups.push({ label: month, year, weekCount: 1 });
+    }
+  });
+
+  return (
+    <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "16px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#111827", marginBottom: "12px" }}>
+          Chronogramme Global
+        </h1>
+
         {isDirecteur && (
-          <Alert className="bg-blue-50 border-blue-200">
+          <Alert className="bg-blue-50 border-blue-200" style={{ marginBottom: "12px" }}>
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-900 text-sm">
               Vous êtes en mode lecture seule.
@@ -153,9 +175,9 @@ export default function TimelineGantt() {
           </Alert>
         )}
 
-        {/* Filtres : empilés sur mobile, côte à côte sur desktop */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="w-full sm:w-48">
+        {/* Filtres */}
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
+          <div style={{ minWidth: "180px" }}>
             <Select value={filterDepartment} onValueChange={setFilterDepartment}>
               <SelectTrigger><SelectValue placeholder="Département" /></SelectTrigger>
               <SelectContent>
@@ -166,7 +188,7 @@ export default function TimelineGantt() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full sm:w-64">
+          <div style={{ minWidth: "220px" }}>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger><SelectValue placeholder="Statut" /></SelectTrigger>
               <SelectContent>
@@ -184,63 +206,77 @@ export default function TimelineGantt() {
             </Select>
           </div>
         </div>
+
+        {/* Navigation par année */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "13px", color: "#6b7280", marginRight: "4px" }}>Aller à :</span>
+          {availableYears.map((year) => (
+            <button
+              key={year}
+              onClick={() => scrollToYear(year)}
+              style={{
+                padding: "4px 14px",
+                borderRadius: "9999px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+                border: "1px solid #d1d5db",
+                backgroundColor: "white",
+                color: "#374151",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLButtonElement).style.backgroundColor = "#2563eb";
+                (e.target as HTMLButtonElement).style.color = "white";
+                (e.target as HTMLButtonElement).style.borderColor = "#2563eb";
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLButtonElement).style.backgroundColor = "white";
+                (e.target as HTMLButtonElement).style.color = "#374151";
+                (e.target as HTMLButtonElement).style.borderColor = "#d1d5db";
+              }}
+            >
+              {year}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Note explicative sur mobile : le Gantt est mieux sur grand écran */}
-      <div className="md:hidden max-w-[1600px] mx-auto">
-        <Alert className="bg-gray-50 border-gray-200">
-          <Info className="h-4 w-4 text-gray-500" />
-          <AlertDescription className="text-gray-600 text-xs">
-            Faites glisser horizontalement pour naviguer dans la chronologie.
-          </AlertDescription>
-        </Alert>
-      </div>
-
-      <Card className="max-w-[1600px] mx-auto">
-        <CardHeader className="py-3 md:py-4">
-          <CardTitle className="text-base md:text-lg">Vue Chronologique</CardTitle>
+      <Card>
+        <CardHeader style={{ padding: "12px 16px" }}>
+          <CardTitle style={{ fontSize: "16px" }}>Vue Chronologique</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex border-t">
+          <div style={{ display: "flex", borderTop: "1px solid #e5e7eb" }}>
 
-            {/* PANNEAU GAUCHE : noms des projets */}
-            <div
-              className="flex-shrink-0 border-r border-gray-200"
-              style={{ width: `${NAME_PANEL_WIDTH}px` }}
-            >
-              <div className="h-12 bg-gray-50 border-b border-gray-200 flex items-center px-3 font-medium text-xs md:text-sm text-gray-700">
+            {/* PANNEAU GAUCHE */}
+            <div style={{ flexShrink: 0, borderRight: "1px solid #e5e7eb", width: `${NAME_PANEL_WIDTH}px` }}>
+              {/* En-tête double ligne : Année / Mois */}
+              <div style={{ height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", padding: "0 12px", fontWeight: 500, fontSize: "13px", color: "#374151" }}>
                 Projets
               </div>
               <div
                 ref={leftPanelRef}
                 onScroll={handleLeftScroll}
-                // Hauteur réduite sur mobile pour laisser de la place
                 style={{ height: "450px", overflowY: "auto", overflowX: "hidden" }}
               >
                 {rows.map((row, i) =>
                   row.type === "dept" ? (
                     <div
                       key={`dept-left-${i}`}
-                      className="bg-blue-50 px-3 flex items-center font-semibold text-xs text-blue-900 border-b border-gray-200"
-                      style={{ height: `${DEPT_ROW_HEIGHT}px` }}
+                      style={{ height: `${DEPT_ROW_HEIGHT}px`, backgroundColor: "#eff6ff", padding: "0 12px", display: "flex", alignItems: "center", fontWeight: 600, fontSize: "12px", color: "#1e3a8a", borderBottom: "1px solid #e5e7eb" }}
                     >
                       {row.dept}
                     </div>
                   ) : (
                     <div
                       key={`proj-left-${i}`}
-                      className="px-3 border-b border-gray-100 hover:bg-gray-50 flex flex-col justify-center"
-                      style={{ height: `${ROW_HEIGHT}px` }}
+                      style={{ height: `${ROW_HEIGHT}px`, padding: "0 12px", borderBottom: "1px solid #f3f4f6", display: "flex", flexDirection: "column", justifyContent: "center" }}
                     >
-                      {/* Nom tronqué avec tooltip au survol */}
-                      <div
-                        className="text-xs font-medium text-gray-900 leading-tight truncate"
-                        title={row.project.name}
-                      >
+                      <div style={{ fontSize: "12px", fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.project.name}>
                         {row.project.name}
                       </div>
-                      {/* Chef de projet masqué sur très petit écran */}
-                      <div className="text-xs text-gray-500 mt-0.5 truncate hidden sm:block">
+                      <div style={{ fontSize: "11px", color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.project.projectManager}
                       </div>
                     </div>
@@ -249,75 +285,124 @@ export default function TimelineGantt() {
               </div>
             </div>
 
-            {/* PANNEAU DROIT : barres Gantt avec scroll horizontal */}
-            <div style={{ flex: 1, overflowX: "auto" }}>
-              <div style={{ width: `${totalTimelineWidth}px`, minWidth: "100%" }}>
+            {/* PANNEAU DROIT */}
+            <div style={{ flex: 1, overflow: "hidden" }}>
 
-                {/* En-têtes des semaines */}
-                <div className="h-12 bg-gray-50 border-b border-gray-200 flex">
-                  {weeks.map((week, i) => (
-                    <div
-                      key={i}
-                      className="border-r border-gray-200 px-1 py-2 text-center flex-shrink-0"
-                      style={{ width: `${WEEK_WIDTH}px` }}
-                    >
-                      <div className="font-medium text-gray-600 text-xs">
-                        {/* Sur mobile : afficher seulement le jour, sur desktop : jour + mois */}
-                        <span className="hidden sm:inline">
-                          {week.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                        </span>
-                        <span className="sm:hidden">
-                          {week.toLocaleDateString("fr-FR", { day: "2-digit" })}
-                        </span>
+              {/* En-tête double ligne : Année en haut, Mois en bas */}
+              <div
+                ref={headerRef}
+                style={{ overflowX: "hidden", height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}
+              >
+                <div style={{ width: `${totalTimelineWidth}px` }}>
+
+                  {/* Ligne 1 : Années */}
+                  <div style={{ display: "flex", height: "28px", borderBottom: "1px solid #e5e7eb" }}>
+                    {monthGroups.reduce((acc, group, i) => {
+                      const prev = acc[acc.length - 1];
+                      if (prev && prev.year === group.year) {
+                        prev.weekCount += group.weekCount;
+                        return acc;
+                      }
+                      acc.push({ year: group.year, weekCount: group.weekCount });
+                      return acc;
+                    }, [] as { year: number; weekCount: number }[]).map((yearGroup, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: `${yearGroup.weekCount * WEEK_WIDTH}px`,
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          paddingLeft: "8px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          color: "#1e40af",
+                          borderRight: "2px solid #bfdbfe",
+                          backgroundColor: "#eff6ff",
+                        }}
+                      >
+                        {yearGroup.year}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                {/* Zone des barres Gantt */}
-                <div
-                  ref={rightPanelRef}
-                  onScroll={handleRightScroll}
-                  style={{ height: "450px", overflowY: "auto" }}
-                >
+                  {/* Ligne 2 : Mois */}
+                  <div style={{ display: "flex", height: "36px" }}>
+                    {monthGroups.map((group, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: `${group.weekCount * WEEK_WIDTH}px`,
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          color: "#4b5563",
+                          borderRight: "1px solid #e5e7eb",
+                        }}
+                      >
+                        {group.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Zone des barres */}
+              <div
+                ref={rightPanelRef}
+                onScroll={handleRightScroll}
+                style={{ height: "450px", overflowY: "auto", overflowX: "auto" }}
+              >
+                <div style={{ width: `${totalTimelineWidth}px` }}>
                   {rows.map((row, i) =>
                     row.type === "dept" ? (
                       <div
                         key={`dept-right-${i}`}
-                        className="bg-blue-50 border-b border-gray-200"
-                        style={{ height: `${DEPT_ROW_HEIGHT}px`, width: `${totalTimelineWidth}px` }}
+                        style={{ height: `${DEPT_ROW_HEIGHT}px`, width: `${totalTimelineWidth}px`, backgroundColor: "#eff6ff", borderBottom: "1px solid #e5e7eb" }}
                       />
                     ) : (
                       <div
                         key={`bar-${i}`}
-                        className="border-b border-gray-100 relative"
-                        style={{ height: `${ROW_HEIGHT}px`, width: `${totalTimelineWidth}px` }}
+                        style={{ height: `${ROW_HEIGHT}px`, width: `${totalTimelineWidth}px`, position: "relative", borderBottom: "1px solid #f3f4f6" }}
                       >
-                        {/* Grille verticale */}
                         {weeks.map((_, wi) => (
                           <div
                             key={wi}
-                            className="absolute top-0 bottom-0 border-r border-gray-100"
-                            style={{ left: `${wi * WEEK_WIDTH}px` }}
+                            style={{ position: "absolute", top: 0, bottom: 0, left: `${wi * WEEK_WIDTH}px`, borderRight: "1px solid #f3f4f6" }}
                           />
                         ))}
-
-                        {/* Barre colorée */}
                         {(() => {
                           const barStyle = getBarStyle(row.project.startDate, row.project.endDate);
                           if (!barStyle) return (
-                            <div className="absolute top-3 left-1 text-xs text-gray-400 italic">
+                            <div style={{ position: "absolute", top: "12px", left: "4px", fontSize: "11px", color: "#9ca3af", fontStyle: "italic" }}>
                               dates manquantes
                             </div>
                           );
                           const color = statusColors[row.project.status] || "#9CA3AF";
                           return (
                             <div
-                              className="absolute top-2 h-8 rounded px-1 md:px-2 flex items-center shadow-sm overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                              style={{ left: barStyle.left, width: barStyle.width, backgroundColor: color, minWidth: "30px" }}
+                              style={{
+                                position: "absolute",
+                                top: "8px",
+                                height: "36px",
+                                left: barStyle.left,
+                                width: barStyle.width,
+                                backgroundColor: color,
+                                borderRadius: "6px",
+                                padding: "0 8px",
+                                display: "flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                minWidth: "30px",
+                                overflow: "hidden",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                              }}
                               title={`${row.project.name}\nStatut: ${row.project.status}\nAvancement: ${formatProgressValue(row.project.progress)}%\nDébut: ${row.project.startDate}\nFin prévue: ${row.project.endDate}`}
                             >
-                              <span className="text-xs text-white font-semibold whitespace-nowrap">
+                              <span style={{ fontSize: "11px", color: "white", fontWeight: 600, whiteSpace: "nowrap" }}>
                                 {formatProgressValue(row.project.progress)}%
                               </span>
                             </div>
