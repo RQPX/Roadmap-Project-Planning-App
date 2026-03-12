@@ -14,28 +14,31 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { Info } from "lucide-react";
 import { formatProgressValue } from "../../utils/formatProgress";
 
+// Dimensions fixes du Gantt
 const WEEK_WIDTH = 80;
 const ROW_HEIGHT = 52;
 const DEPT_ROW_HEIGHT = 32;
 const NAME_PANEL_WIDTH = 300;
 
+// Convertit une chaîne de date en objet Date
+// Gère les formats Airtable : "2024-01-15", "2024-01-15T00:00:00.000Z", "DD/MM/YYYY"
 function parseDate(dateStr: string | undefined | null): Date | null {
   if (!dateStr) return null;
   try {
-    // Handle ISO format from Airtable: "2024-01-15" or "2024-01-15T00:00:00.000Z"
+    // Format ISO Airtable : "2024-01-15" ou "2024-01-15T00:00:00.000Z"
     if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-      // Force parse as local date to avoid timezone offset issues
+      // Parse en date locale pour éviter les décalages de fuseau horaire
       const parts = dateStr.substring(0, 10).split("-");
       const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
       if (!isNaN(d.getTime())) return d;
     }
-    // Handle DD/MM/YYYY format
+    // Format DD/MM/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
       const parts = dateStr.split("/");
       const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
       if (!isNaN(d.getTime())) return d;
     }
-    // Fallback
+    // Fallback natif
     const iso = new Date(dateStr);
     if (!isNaN(iso.getTime())) return iso;
     return null;
@@ -50,21 +53,68 @@ export default function TimelineGantt() {
   const { projects, loading } = useProjects();
   const { isDirecteur } = useAuth();
 
+  // Références pour synchroniser le scroll vertical des deux panneaux
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
 
+  // Synchronise le scroll du panneau droit quand on scroll à gauche
   const handleLeftScroll = () => {
     if (rightPanelRef.current && leftPanelRef.current) {
       rightPanelRef.current.scrollTop = leftPanelRef.current.scrollTop;
     }
   };
 
+  // Synchronise le scroll du panneau gauche quand on scroll à droite
   const handleRightScroll = () => {
     if (leftPanelRef.current && rightPanelRef.current) {
       leftPanelRef.current.scrollTop = rightPanelRef.current.scrollTop;
     }
   };
 
+  // CORRECTION CRITIQUE : useMemo doit être appelé AVANT tout return conditionnel
+  // En React, les hooks ne peuvent jamais être placés après un return
+  // Calcule la période de la timeline à partir des dates de tous les projets
+  const { timelineStart, weeks } = useMemo(() => {
+    // Si pas de projets encore chargés, retourner une timeline vide par défaut
+    if (!projects || projects.length === 0) {
+      return { timelineStart: new Date("2021-01-01"), weeks: [] };
+    }
+
+    // Collecter toutes les dates valides de début et fin
+    const allDates = projects
+      .flatMap((p) => [parseDate(p.startDate), parseDate(p.endDate)])
+      .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+
+    // Définir le début et la fin de la timeline
+    let start = allDates.length > 0
+      ? new Date(Math.min(...allDates.map((d) => d.getTime())))
+      : new Date("2021-01-01");
+
+    let end = allDates.length > 0
+      ? new Date(Math.max(...allDates.map((d) => d.getTime())))
+      : new Date("2027-12-31");
+
+    // Ajouter une marge de 2 semaines au début et 30 jours à la fin
+    start = new Date(start);
+    start.setDate(start.getDate() - 14);
+    start.setDate(1);
+
+    end = new Date(end);
+    end.setDate(end.getDate() + 30);
+
+    // Générer la liste de toutes les semaines entre start et end
+    const weeks: Date[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) {
+      weeks.push(new Date(d));
+      // Limite de sécurité : max 260 semaines (~5 ans)
+      if (weeks.length > 260) break;
+    }
+
+    return { timelineStart: start, weeks };
+  }, [projects]); // Se recalcule uniquement quand les projets changent
+
+  // Affichage du skeleton pendant le chargement des données Airtable
+  // Ce return est APRES tous les hooks, donc pas de problème React
   if (loading) {
     return (
       <div className="p-6 max-w-[1600px] mx-auto">
@@ -76,12 +126,14 @@ export default function TimelineGantt() {
     );
   }
 
+  // Filtrer les projets selon les sélecteurs département et statut
   const filteredProjects = projects.filter((project) => {
     const deptMatch = filterDepartment === "all" || project.department === filterDepartment;
     const statusMatch = filterStatus === "all" || project.status === filterStatus;
     return deptMatch && statusMatch;
   });
 
+  // Grouper les projets filtrés par département
   const projectsByDept = filteredProjects.reduce((acc, project) => {
     const dept = project.department || "Autre";
     if (!acc[dept]) acc[dept] = [];
@@ -89,42 +141,16 @@ export default function TimelineGantt() {
     return acc;
   }, {} as Record<string, typeof projects>);
 
-  const { timelineStart, weeks } = useMemo(() => {
-    const allDates = projects
-      .flatMap((p) => [parseDate(p.startDate), parseDate(p.endDate)])
-      .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
-
-    let start = allDates.length > 0
-      ? new Date(Math.min(...allDates.map((d) => d.getTime())))
-      : new Date("2021-01-01");
-
-    let end = allDates.length > 0
-      ? new Date(Math.max(...allDates.map((d) => d.getTime())))
-      : new Date("2027-12-31");
-
-    start = new Date(start);
-    start.setDate(start.getDate() - 14);
-    start.setDate(1);
-
-    end = new Date(end);
-    end.setDate(end.getDate() + 30);
-
-    const weeks: Date[] = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) {
-      weeks.push(new Date(d));
-      if (weeks.length > 260) break;
-    }
-
-    return { timelineStart: start, weeks };
-  }, [projects]);
-
+  // Calculer la position et la largeur d'une barre Gantt en pixels
   const getBarStyle = (startDateStr: string, endDateStr: string) => {
     const start = parseDate(startDateStr);
     const end = parseDate(endDateStr);
     if (!start || !end) return null;
 
     const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    // Distance en semaines depuis le début de la timeline
     const leftWeeks = (start.getTime() - timelineStart.getTime()) / msPerWeek;
+    // Durée en semaines (minimum 0.5 semaine pour être visible)
     const widthWeeks = Math.max(0.5, (end.getTime() - start.getTime()) / msPerWeek);
 
     return {
@@ -135,6 +161,7 @@ export default function TimelineGantt() {
 
   const totalTimelineWidth = weeks.length * WEEK_WIDTH;
 
+  // Construire la liste de lignes : alternance entre en-têtes de département et projets
   const rows: Array<{ type: "dept"; dept: string } | { type: "project"; project: typeof projects[0] }> = [];
   for (const [dept, deptProjects] of Object.entries(projectsByDept)) {
     rows.push({ type: "dept", dept });
@@ -148,6 +175,7 @@ export default function TimelineGantt() {
       <div className="max-w-[1600px] mx-auto space-y-4">
         <h1 className="text-3xl font-semibold text-gray-900">Chronogramme Global</h1>
 
+        {/* Message lecture seule pour les directeurs */}
         {isDirecteur && (
           <Alert className="bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
@@ -157,6 +185,7 @@ export default function TimelineGantt() {
           </Alert>
         )}
 
+        {/* Filtres département et statut */}
         <div className="flex space-x-4">
           <div className="w-48">
             <Select value={filterDepartment} onValueChange={setFilterDepartment}>
@@ -193,7 +222,8 @@ export default function TimelineGantt() {
         <CardHeader><CardTitle>Vue Chronologique</CardTitle></CardHeader>
         <CardContent className="p-0">
           <div className="flex border-t">
-            {/* LEFT PANEL */}
+
+            {/* PANNEAU GAUCHE : noms des projets */}
             <div className="flex-shrink-0 border-r border-gray-200" style={{ width: `${NAME_PANEL_WIDTH}px` }}>
               <div className="h-12 bg-gray-50 border-b border-gray-200 flex items-center px-4 font-medium text-sm text-gray-700">
                 Projets
@@ -205,6 +235,7 @@ export default function TimelineGantt() {
               >
                 {rows.map((row, i) =>
                   row.type === "dept" ? (
+                    // En-tête de département
                     <div
                       key={`dept-left-${i}`}
                       className="bg-blue-50 px-4 flex items-center font-semibold text-sm text-blue-900 border-b border-gray-200"
@@ -213,6 +244,7 @@ export default function TimelineGantt() {
                       {row.dept}
                     </div>
                   ) : (
+                    // Ligne de projet : nom + chef de projet
                     <div
                       key={`proj-left-${i}`}
                       className="px-4 border-b border-gray-100 hover:bg-gray-50 flex flex-col justify-center"
@@ -230,10 +262,11 @@ export default function TimelineGantt() {
               </div>
             </div>
 
-            {/* RIGHT PANEL */}
+            {/* PANNEAU DROIT : barres Gantt */}
             <div style={{ flex: 1, overflowX: "auto" }}>
               <div style={{ width: `${totalTimelineWidth}px`, minWidth: "100%" }}>
-                {/* Week headers */}
+
+                {/* En-têtes des semaines */}
                 <div className="h-12 bg-gray-50 border-b border-gray-200 flex">
                   {weeks.map((week, i) => (
                     <div
@@ -248,7 +281,7 @@ export default function TimelineGantt() {
                   ))}
                 </div>
 
-                {/* Bars */}
+                {/* Zone des barres avec scroll vertical synchronisé */}
                 <div
                   ref={rightPanelRef}
                   onScroll={handleRightScroll}
@@ -256,18 +289,20 @@ export default function TimelineGantt() {
                 >
                   {rows.map((row, i) =>
                     row.type === "dept" ? (
+                      // Ligne vide bleue pour les départements
                       <div
                         key={`dept-right-${i}`}
                         className="bg-blue-50 border-b border-gray-200"
                         style={{ height: `${DEPT_ROW_HEIGHT}px`, width: `${totalTimelineWidth}px` }}
                       />
                     ) : (
+                      // Ligne avec barre Gantt pour chaque projet
                       <div
                         key={`bar-${i}`}
                         className="border-b border-gray-100 relative"
                         style={{ height: `${ROW_HEIGHT}px`, width: `${totalTimelineWidth}px` }}
                       >
-                        {/* Vertical grid lines */}
+                        {/* Lignes de grille verticales (une par semaine) */}
                         {weeks.map((_, wi) => (
                           <div
                             key={wi}
@@ -276,14 +311,16 @@ export default function TimelineGantt() {
                           />
                         ))}
 
-                        {/* Bar */}
+                        {/* Barre colorée du projet */}
                         {(() => {
                           const barStyle = getBarStyle(row.project.startDate, row.project.endDate);
+                          // Si les dates sont manquantes, afficher un message
                           if (!barStyle) return (
                             <div className="absolute top-3 left-1 text-xs text-gray-400 italic">
                               dates manquantes
                             </div>
                           );
+                          // Couleur selon le statut du projet
                           const color = statusColors[row.project.status] || "#9CA3AF";
                           return (
                             <div
