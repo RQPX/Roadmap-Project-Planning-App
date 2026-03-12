@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { LayoutDashboard, FolderKanban, Calendar, LogOut, AlertCircle, Menu, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -19,6 +19,16 @@ export function TopNavigation() {
   const { user, isAdmin, isDirecteur, logout } = useAuth();
   const { usingMockData } = useProjects();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+      if (window.innerWidth >= 768) setMobileMenuOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -31,7 +41,7 @@ export function TopNavigation() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav style={{ backgroundColor: "white", borderBottom: "1px solid #e5e7eb" }}>
       {usingMockData && (
         <div className="px-4 pt-2">
           <Alert variant="default" className="bg-amber-50 border-amber-200">
@@ -43,102 +53,118 @@ export function TopNavigation() {
         </div>
       )}
 
-      <div className="px-4 md:px-6 py-3">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+      <div style={{ padding: "12px 16px", maxWidth: "1600px", margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-          {/* Navigation desktop — cachée sous 768px */}
-          <div
-            style={{ display: "none" }}
-            className="md-nav-desktop"
-          >
-          </div>
-
-          {/* Navigation toujours visible sur desktop via flex, cachée sur mobile */}
-          <div className="items-center space-x-2 hidden"
-            ref={(el) => {
-              if (el) {
-                // Afficher si écran >= 768px
-                el.style.display = window.innerWidth >= 768 ? "flex" : "none";
-              }
-            }}
-          >
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
-              return (
-                <Link key={item.path} to={item.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${isActive ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Titre mobile */}
-          <span className="font-semibold text-gray-800 text-sm md:hidden">Gestion Projets</span>
-
-          <div className="flex items-center space-x-3">
-            {/* Infos utilisateur desktop */}
-            <div className="hidden md:flex items-center space-x-3">
-              <Avatar className={`h-9 w-9 ${isAdmin ? "bg-blue-600" : "bg-gray-600"}`}>
-                <AvatarFallback className={`${isAdmin ? "bg-blue-600" : "bg-gray-600"} text-white text-sm`}>
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">{user?.name}</span>
-                {isDirecteur && <span className="text-xs text-gray-500">Lecture seule</span>}
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center space-x-2">
-                <LogOut className="h-4 w-4" />
-                <span>Déconnexion</span>
-              </Button>
+          {isDesktop ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      textDecoration: "none",
+                      backgroundColor: isActive ? "#2563eb" : "transparent",
+                      color: isActive ? "white" : "#374151",
+                      fontWeight: 500,
+                      transition: "background-color 0.15s",
+                    }}
+                  >
+                    <Icon style={{ width: 16, height: 16 }} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
+          ) : (
+            <span style={{ fontWeight: 600, color: "#1f2937", fontSize: "14px" }}>Gestion Projets</span>
+          )}
 
-            {/* Bouton burger mobile */}
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5 text-gray-700" /> : <Menu className="h-5 w-5 text-gray-700" />}
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {isDesktop && (
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <Avatar className={`h-9 w-9 ${isAdmin ? "bg-blue-600" : "bg-gray-600"}`}>
+                  <AvatarFallback className={`${isAdmin ? "bg-blue-600" : "bg-gray-600"} text-white text-sm`}>
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>{user?.name}</span>
+                  {isDirecteur && <span style={{ fontSize: "12px", color: "#6b7280" }}>Lecture seule</span>}
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <LogOut style={{ width: 16, height: 16 }} />
+                  <span>Déconnexion</span>
+                </Button>
+              </div>
+            )}
+
+            {!isDesktop && (
+              <button
+                style={{ padding: "8px", borderRadius: "8px", background: "none", border: "none", cursor: "pointer" }}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen
+                  ? <X style={{ width: 20, height: 20, color: "#374151" }} />
+                  : <Menu style={{ width: 20, height: 20, color: "#374151" }} />
+                }
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Menu déroulant mobile */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-3 pb-2 border-t border-gray-100 pt-3 space-y-1">
+        {!isDesktop && mobileMenuOpen && (
+          <div style={{ marginTop: "12px", paddingBottom: "8px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
               return (
-                <Link key={item.path} to={item.path}
+                <Link
+                  key={item.path}
+                  to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    textDecoration: "none",
+                    backgroundColor: isActive ? "#2563eb" : "transparent",
+                    color: isActive ? "white" : "#374151",
+                    fontWeight: 500,
+                    marginBottom: "4px",
+                  }}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon style={{ width: 20, height: 20 }} />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
-            <div className="border-t border-gray-100 my-2" />
-            <div className="flex items-center justify-between px-4 py-2">
-              <div className="flex items-center space-x-3">
+            <div style={{ borderTop: "1px solid #f3f4f6", margin: "8px 0" }} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <Avatar className={`h-8 w-8 ${isAdmin ? "bg-blue-600" : "bg-gray-600"}`}>
                   <AvatarFallback className={`${isAdmin ? "bg-blue-600" : "bg-gray-600"} text-white text-xs`}>
                     {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-700">{user?.name}</span>
-                  {isDirecteur && <span className="text-xs text-gray-500">Lecture seule</span>}
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>{user?.name}</span>
+                  {isDirecteur && <span style={{ fontSize: "12px", color: "#6b7280" }}>Lecture seule</span>}
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                <LogOut className="h-4 w-4 mr-1" />
-                <span className="text-sm">Déconnexion</span>
+                <LogOut style={{ width: 16, height: 16, marginRight: "4px" }} />
+                <span style={{ fontSize: "14px" }}>Déconnexion</span>
               </Button>
             </div>
           </div>
