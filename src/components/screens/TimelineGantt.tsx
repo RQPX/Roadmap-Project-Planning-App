@@ -61,7 +61,7 @@ export default function TimelineGantt() {
 
   const { timelineStart, weeks, availableYears } = useMemo(() => {
     if (!projects || projects.length === 0)
-      return { timelineStart: new Date("2021-01-01"), weeks: [], availableYears: [] };
+      return { timelineStart: new Date("2020-01-01"), weeks: [], availableYears: [] };
 
     const allDates = projects
       .flatMap((p) => [parseDate(p.startDate), parseDate(p.endDate)])
@@ -69,23 +69,25 @@ export default function TimelineGantt() {
 
     let start = allDates.length > 0
       ? new Date(Math.min(...allDates.map((d) => d.getTime())))
-      : new Date("2021-01-01");
+      : new Date("2020-01-01");
+
+    // Forcer la fin à au moins fin 2026
     let end = allDates.length > 0
       ? new Date(Math.max(...allDates.map((d) => d.getTime())))
-      : new Date("2027-12-31");
+      : new Date("2026-12-31");
+    end = new Date(Math.max(end.getTime(), new Date("2026-12-31").getTime()));
 
     start = new Date(start);
     start.setDate(start.getDate() - 14);
     start.setDate(1);
     end = new Date(end);
-    // S'assurer que 2026 est toujours inclus
-    end = new Date(Math.max(end.getTime(), new Date("2026-12-31").getTime()));
-    end.setDate(end.getDate() + 30);
+    end.setMonth(end.getMonth() + 2);
 
     const weeks: Date[] = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) {
-      weeks.push(new Date(d));
-      if (weeks.length > 260) break;
+    const cursor = new Date(start);
+    while (cursor <= end && weeks.length < 400) {
+      weeks.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 7);
     }
 
     const years = Array.from(new Set(weeks.map((w) => w.getFullYear()))).sort();
@@ -159,10 +161,23 @@ export default function TimelineGantt() {
     }
   });
 
+  const yearGroups = monthGroups.reduce((acc, group) => {
+    const prev = acc[acc.length - 1];
+    if (prev && prev.year === group.year) {
+      prev.weekCount += group.weekCount;
+      return acc;
+    }
+    acc.push({ year: group.year, weekCount: group.weekCount });
+    return acc;
+  }, [] as { year: number; weekCount: number }[]);
+
   return (
     <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
 
-      <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .gantt-right::-webkit-scrollbar { display: none; }
+      `}</style>
 
       <div style={{ marginBottom: "16px" }}>
         <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#111827", marginBottom: "12px" }}>
@@ -220,211 +235,3 @@ export default function TimelineGantt() {
               style={{
                 padding: "4px 14px",
                 borderRadius: "9999px",
-                fontSize: "13px",
-                fontWeight: 500,
-                cursor: "pointer",
-                border: "1px solid #d1d5db",
-                backgroundColor: "white",
-                color: "#374151",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLButtonElement).style.backgroundColor = "#2563eb";
-                (e.target as HTMLButtonElement).style.color = "white";
-                (e.target as HTMLButtonElement).style.borderColor = "#2563eb";
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLButtonElement).style.backgroundColor = "white";
-                (e.target as HTMLButtonElement).style.color = "#374151";
-                (e.target as HTMLButtonElement).style.borderColor = "#d1d5db";
-              }}
-            >
-              {year}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader style={{ padding: "12px 16px" }}>
-          <CardTitle style={{ fontSize: "16px" }}>Vue Chronologique</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div style={{ display: "flex", borderTop: "1px solid #e5e7eb" }}>
-
-            {/* PANNEAU GAUCHE */}
-            <div style={{ flexShrink: 0, borderRight: "1px solid #e5e7eb", width: `${NAME_PANEL_WIDTH}px` }}>
-              <div style={{ height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", padding: "0 12px", fontWeight: 500, fontSize: "13px", color: "#374151" }}>
-                Projets
-              </div>
-              <div
-                ref={leftPanelRef}
-                onScroll={handleLeftScroll}
-                className="hide-scrollbar"
-                style={{ height: "450px", overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-              >
-                {rows.map((row, i) =>
-                  row.type === "dept" ? (
-                    <div
-                      key={`dept-left-${i}`}
-                      style={{ height: `${DEPT_ROW_HEIGHT}px`, backgroundColor: "#eff6ff", padding: "0 12px", display: "flex", alignItems: "center", fontWeight: 600, fontSize: "12px", color: "#1e3a8a", borderBottom: "1px solid #e5e7eb" }}
-                    >
-                      {row.dept}
-                    </div>
-                  ) : (
-                    <div
-                      key={`proj-left-${i}`}
-                      style={{ height: `${ROW_HEIGHT}px`, padding: "0 12px", borderBottom: "1px solid #f3f4f6", display: "flex", flexDirection: "column", justifyContent: "center" }}
-                    >
-                      <div style={{ fontSize: "12px", fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.project.name}>
-                        {row.project.name}
-                      </div>
-                      <div style={{ fontSize: "11px", color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {row.project.projectManager}
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-            {/* PANNEAU DROIT */}
-            <div style={{ flex: 1, overflow: "hidden" }}>
-
-              {/* En-tête : Année + Mois */}
-              <div
-                ref={headerRef}
-                style={{ overflowX: "hidden", height: "64px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}
-              >
-                <div style={{ width: `${totalTimelineWidth}px` }}>
-                  {/* Ligne 1 : Années */}
-                  <div style={{ display: "flex", height: "28px", borderBottom: "1px solid #e5e7eb" }}>
-                    {monthGroups.reduce((acc, group) => {
-                      const prev = acc[acc.length - 1];
-                      if (prev && prev.year === group.year) {
-                        prev.weekCount += group.weekCount;
-                        return acc;
-                      }
-                      acc.push({ year: group.year, weekCount: group.weekCount });
-                      return acc;
-                    }, [] as { year: number; weekCount: number }[]).map((yearGroup, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: `${yearGroup.weekCount * WEEK_WIDTH}px`,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          paddingLeft: "8px",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: "#1e40af",
-                          borderRight: "2px solid #bfdbfe",
-                          backgroundColor: "#eff6ff",
-                        }}
-                      >
-                        {yearGroup.year}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Ligne 2 : Mois */}
-                  <div style={{ display: "flex", height: "36px" }}>
-                    {monthGroups.map((group, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: `${group.weekCount * WEEK_WIDTH}px`,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: 500,
-                          color: "#4b5563",
-                          borderRight: "1px solid #e5e7eb",
-                        }}
-                      >
-                        {group.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Zone des barres — scrollbar masquée */}
-              <div
-                ref={rightPanelRef}
-                onScroll={handleRightScroll}
-                className="hide-scrollbar"
-                style={{
-                  height: "450px",
-                  overflowY: "auto",
-                  overflowX: "auto",
-                  scrollbarWidth: "none",
-                  msOverflowStyle: "none",
-                } as React.CSSProperties}
-              >
-                <div style={{ width: `${totalTimelineWidth}px` }}>
-                  {rows.map((row, i) =>
-                    row.type === "dept" ? (
-                      <div
-                        key={`dept-right-${i}`}
-                        style={{ height: `${DEPT_ROW_HEIGHT}px`, width: `${totalTimelineWidth}px`, backgroundColor: "#eff6ff", borderBottom: "1px solid #e5e7eb" }}
-                      />
-                    ) : (
-                      <div
-                        key={`bar-${i}`}
-                        style={{ height: `${ROW_HEIGHT}px`, width: `${totalTimelineWidth}px`, position: "relative", borderBottom: "1px solid #f3f4f6" }}
-                      >
-                        {weeks.map((_, wi) => (
-                          <div
-                            key={wi}
-                            style={{ position: "absolute", top: 0, bottom: 0, left: `${wi * WEEK_WIDTH}px`, borderRight: "1px solid #f3f4f6" }}
-                          />
-                        ))}
-                        {(() => {
-                          const barStyle = getBarStyle(row.project.startDate, row.project.endDate);
-                          if (!barStyle) return (
-                            <div style={{ position: "absolute", top: "12px", left: "4px", fontSize: "11px", color: "#9ca3af", fontStyle: "italic" }}>
-                              dates manquantes
-                            </div>
-                          );
-                          const color = statusColors[row.project.status] || "#9CA3AF";
-                          return (
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "8px",
-                                height: "36px",
-                                left: barStyle.left,
-                                width: barStyle.width,
-                                backgroundColor: color,
-                                borderRadius: "6px",
-                                padding: "0 8px",
-                                display: "flex",
-                                alignItems: "center",
-                                cursor: "pointer",
-                                minWidth: "30px",
-                                overflow: "hidden",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-                              }}
-                              title={`${row.project.name}\nStatut: ${row.project.status}\nAvancement: ${formatProgressValue(row.project.progress)}%\nDébut: ${row.project.startDate}\nFin prévue: ${row.project.endDate}`}
-                            >
-                              <span style={{ fontSize: "11px", color: "white", fontWeight: 600, whiteSpace: "nowrap" }}>
-                                {formatProgressValue(row.project.progress)}%
-                              </span>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
