@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { Project, Status, statusColors, priorityColors } from "../../types/project";
@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { formatProgressValue, isProjectDelayed } from "../../utils/formatProgress";
 import { toast } from "sonner@2.0.3";
 
-// Nombre de cartes par page dans chaque colonne
 const CARDS_PER_PAGE = 5;
 
 const allStatuses: Status[] = [
@@ -26,56 +25,16 @@ const allStatuses: Status[] = [
   "Abandonne",
 ];
 
-// Composant pagination affiché en bas de chaque colonne
-function ColumnPagination({
-  currentPage,
-  totalPages,
-  onPrev,
-  onNext,
-}: {
-  currentPage: number;
-  totalPages: number;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200">
-      <button
-        onClick={(e) => { e.stopPropagation(); onPrev(); }}
-        disabled={currentPage === 0}
-        className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4 text-gray-600" />
-      </button>
-      <span className="text-xs text-gray-500">{currentPage + 1} / {totalPages}</span>
-      <button
-        onClick={(e) => { e.stopPropagation(); onNext(); }}
-        disabled={currentPage === totalPages - 1}
-        className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        <ChevronRight className="h-4 w-4 text-gray-600" />
-      </button>
-    </div>
-  );
-}
-
 export default function ProjectsKanban() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
   const { isAdmin } = useAuth();
-
-  // Pagination par colonne
-  const [columnPages, setColumnPages] = useState<Record<string, number>>({});
-  const getPage = (status: string) => columnPages[status] ?? 0;
-  const nextPage = (status: string) =>
-    setColumnPages((prev) => ({ ...prev, [status]: (prev[status] ?? 0) + 1 }));
-  const prevPage = (status: string) =>
-    setColumnPages((prev) => ({ ...prev, [status]: Math.max(0, (prev[status] ?? 0) - 1) }));
-
-  // Filtre par statut actif — utilisé sur mobile pour naviguer entre colonnes
   const [activeStatusIndex, setActiveStatusIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Reset page quand on change d'onglet
+  useEffect(() => { setCurrentPage(0); }, [activeStatusIndex]);
 
   const handleAddProject = () => {
     if (!isAdmin) { toast.error("Permissions insuffisantes"); return; }
@@ -111,56 +70,31 @@ export default function ProjectsKanban() {
     } catch (error) { console.error(error); }
   };
 
-  // Composant carte projet réutilisable
-  const ProjectCard = ({ project }: { project: Project }) => (
-    <div
-      onClick={() => handleEditProject(project)}
-      className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer space-y-3"
-    >
-      <div className="space-y-2">
-        <h4 className="font-medium text-gray-900 text-sm leading-tight">{project.name}</h4>
-        <div className="flex items-center flex-wrap gap-1">
-          <Badge variant="outline" className="text-xs font-normal">{project.department}</Badge>
-          <Badge style={{ backgroundColor: priorityColors[project.priority], color: "white" }} className="text-xs">
-            {project.priority}
-          </Badge>
-          {/* Badge RETARD automatique si date dépassée et projet non clôturé */}
-          {isProjectDelayed(project.endDate, project.status) && (
-            <Badge className="bg-red-600 text-white text-xs">RETARD</Badge>
-          )}
-        </div>
-      </div>
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <span>Avancement</span>
-          <span className="font-medium">{formatProgressValue(project.progress)}%</span>
-        </div>
-        <Progress value={formatProgressValue(project.progress)} className="h-1.5" />
-      </div>
-      <div className="text-xs text-gray-600">
-        <span className="font-medium">Chef de projet:</span> {project.projectManager}
-      </div>
-    </div>
+  const activeStatus = allStatuses[activeStatusIndex];
+  const filteredProjects = projects.filter((p) => p.status === activeStatus);
+  const totalPages = Math.ceil(filteredProjects.length / CARDS_PER_PAGE);
+  const paginatedProjects = filteredProjects.slice(
+    currentPage * CARDS_PER_PAGE,
+    (currentPage + 1) * CARDS_PER_PAGE
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+    <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
 
       {/* En-tête */}
-      <div className="flex items-center justify-between max-w-[1600px] mx-auto">
-        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">Gestion des Projets</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#111827" }}>Gestion des Projets</h1>
         {isAdmin && (
-          <Button onClick={handleAddProject} size="sm" className="bg-blue-600 hover:bg-blue-700 md:size-lg">
-            <Plus className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="hidden sm:inline">Ajouter un Nouveau Projet</span>
-            <span className="sm:hidden">Ajouter</span>
+          <Button onClick={handleAddProject} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            + Ajouter un Nouveau Projet
           </Button>
         )}
       </div>
 
       {/* Bandeau lecture seule */}
       {!isAdmin && (
-        <div className="max-w-[1600px] mx-auto">
+        <div style={{ marginBottom: "16px" }}>
           <Alert className="bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-900 text-sm">
@@ -170,120 +104,127 @@ export default function ProjectsKanban() {
         </div>
       )}
 
-      {/* =============================================
-          VUE MOBILE : une colonne à la fois avec navigation par onglets
-          Masquée sur desktop (md:hidden)
-      ============================================= */}
-      <div className="md:hidden">
-        {/* Sélecteur de statut mobile : scroll horizontal d'onglets */}
-        <div className="overflow-x-auto pb-2">
-          <div className="flex space-x-2 min-w-max">
-            {allStatuses.map((status, index) => {
-              const count = projects.filter((p) => p.status === status).length;
-              return (
-                <button
-                  key={status}
-                  onClick={() => setActiveStatusIndex(index)}
-                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    activeStatusIndex === index
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: activeStatusIndex === index ? "white" : statusColors[status] }}
-                  />
-                  <span>{status}</span>
-                  <span className={`ml-1 ${activeStatusIndex === index ? "text-blue-200" : "text-gray-400"}`}>
-                    ({count})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Colonne active sur mobile */}
-        {(() => {
-          const status = allStatuses[activeStatusIndex];
-          const statusProjects = projects.filter((p) => p.status === status);
-          const totalPages = Math.ceil(statusProjects.length / CARDS_PER_PAGE);
-          const currentPage = getPage(status);
-          const paginatedProjects = statusProjects.slice(
-            currentPage * CARDS_PER_PAGE,
-            (currentPage + 1) * CARDS_PER_PAGE
-          );
-          return (
-            <div className="bg-gray-100 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: statusColors[status] }} />
-                  <h3 className="font-semibold text-gray-900 text-sm">{status}</h3>
-                </div>
-                <Badge variant="secondary" className="text-xs">{statusProjects.length}</Badge>
-              </div>
-              <div className="space-y-3">
-                {paginatedProjects.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-4">Aucun projet</p>
-                ) : (
-                  paginatedProjects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
-                  ))
-                )}
-              </div>
-              <ColumnPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPrev={() => prevPage(status)}
-                onNext={() => nextPage(status)}
-              />
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* =============================================
-          VUE DESKTOP : toutes les colonnes en scroll horizontal
-          Masquée sur mobile (hidden md:block)
-      ============================================= */}
-      <div className="hidden md:block w-full overflow-x-auto">
-        <div className="flex space-x-4 pb-4 min-w-max px-2">
-          {allStatuses.map((status) => {
-            const statusProjects = projects.filter((p) => p.status === status);
-            const totalPages = Math.ceil(statusProjects.length / CARDS_PER_PAGE);
-            const currentPage = getPage(status);
-            const paginatedProjects = statusProjects.slice(
-              currentPage * CARDS_PER_PAGE,
-              (currentPage + 1) * CARDS_PER_PAGE
-            );
+      {/* Onglets de statut — scroll horizontal */}
+      <div style={{ overflowX: "auto", paddingBottom: "8px", marginBottom: "20px" }}>
+        <div style={{ display: "flex", gap: "8px", minWidth: "max-content" }}>
+          {allStatuses.map((status, index) => {
+            const count = projects.filter((p) => p.status === status).length;
+            const isActive = activeStatusIndex === index;
             return (
-              <div key={status} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: statusColors[status] }} />
-                    <h3 className="font-semibold text-gray-900">{status}</h3>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">{statusProjects.length}</Badge>
-                </div>
-                <div className="space-y-3 flex-1">
-                  {paginatedProjects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
-                  ))}
-                </div>
-                <ColumnPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPrev={() => prevPage(status)}
-                  onNext={() => nextPage(status)}
-                />
-              </div>
+              <button
+                key={status}
+                onClick={() => setActiveStatusIndex(index)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 14px",
+                  borderRadius: "9999px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  border: "none",
+                  backgroundColor: isActive ? "#2563eb" : "#f3f4f6",
+                  color: isActive ? "white" : "#374151",
+                  transition: "background-color 0.15s",
+                }}
+              >
+                <div style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  backgroundColor: isActive ? "white" : statusColors[status],
+                  flexShrink: 0,
+                }} />
+                <span>{status}({count})</span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Modal création / édition */}
+      {/* En-tête de la colonne active */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+        <div style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: statusColors[activeStatus] }} />
+        <span style={{ fontWeight: 600, color: "#111827" }}>{activeStatus}</span>
+        <span style={{ fontSize: "14px", color: "#6b7280", marginLeft: "4px" }}>{filteredProjects.length}</span>
+      </div>
+
+      {/* Liste des cartes */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {paginatedProjects.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#9ca3af", padding: "32px 0" }}>Aucun projet dans ce statut</p>
+        ) : (
+          paginatedProjects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => handleEditProject(project)}
+              style={{
+                backgroundColor: "white",
+                borderRadius: "10px",
+                padding: "16px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <h4 style={{ fontWeight: 500, color: "#111827", fontSize: "14px", lineHeight: 1.4 }}>{project.name}</h4>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                  <Badge variant="outline" className="text-xs font-normal">{project.department}</Badge>
+                  <Badge style={{ backgroundColor: priorityColors[project.priority], color: "white" }} className="text-xs">
+                    {project.priority}
+                  </Badge>
+                  {isProjectDelayed(project.endDate, project.status) && (
+                    <Badge className="bg-red-600 text-white text-xs">RETARD</Badge>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#4b5563" }}>
+                  <span>Avancement</span>
+                  <span style={{ fontWeight: 500 }}>{formatProgressValue(project.progress)}%</span>
+                </div>
+                <Progress value={formatProgressValue(project.progress)} className="h-1.5" />
+              </div>
+              <div style={{ fontSize: "12px", color: "#4b5563" }}>
+                <span style={{ fontWeight: 500 }}>Chef de projet:</span> {project.projectManager}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginTop: "20px" }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+            style={{
+              padding: "6px", borderRadius: "6px", border: "none", background: "none",
+              cursor: currentPage === 0 ? "not-allowed" : "pointer", opacity: currentPage === 0 ? 0.3 : 1,
+            }}
+          >
+            <ChevronLeft style={{ width: 18, height: 18, color: "#374151" }} />
+          </button>
+          <span style={{ fontSize: "13px", color: "#6b7280" }}>{currentPage + 1} / {totalPages}</span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={currentPage === totalPages - 1}
+            style={{
+              padding: "6px", borderRadius: "6px", border: "none", background: "none",
+              cursor: currentPage === totalPages - 1 ? "not-allowed" : "pointer",
+              opacity: currentPage === totalPages - 1 ? 0.3 : 1,
+            }}
+          >
+            <ChevronRight style={{ width: 18, height: 18, color: "#374151" }} />
+          </button>
+        </div>
+      )}
+
+      {/* Modal */}
       <ProjectModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setSelectedProject(null); }}
