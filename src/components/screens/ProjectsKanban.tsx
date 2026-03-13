@@ -14,15 +14,9 @@ import { toast } from "sonner@2.0.3";
 const CARDS_PER_PAGE = 5;
 
 const allStatuses: Status[] = [
-  "Non demarre",
-  "En etude",
-  "En exécution",
-  "En attente de Go pour production",
-  "En production",
-  "En service",
-  "En pause",
-  "Cloturé",
-  "Abandonne",
+  "Non demarre", "En etude", "En exécution",
+  "En attente de Go pour production", "En production",
+  "En service", "En pause", "Cloturé", "Abandonne",
 ];
 
 export default function ProjectsKanban() {
@@ -32,8 +26,9 @@ export default function ProjectsKanban() {
   const { isAdmin } = useAuth();
   const [activeStatusIndex, setActiveStatusIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [filterDirection, setFilterDirection] = useState<string>("all");
 
-  useEffect(() => { setCurrentPage(0); }, [activeStatusIndex]);
+  useEffect(() => { setCurrentPage(0); }, [activeStatusIndex, filterDirection]);
 
   const handleAddProject = () => {
     if (!isAdmin) { toast.error("Permissions insuffisantes"); return; }
@@ -69,8 +64,17 @@ export default function ProjectsKanban() {
     } catch (error) { console.error(error); }
   };
 
+  // Liste des directions disponibles
+  const allDirections = Array.from(new Set(projects.map((p) => p.department).filter(Boolean))).sort();
+
   const activeStatus = allStatuses[activeStatusIndex];
-  const filteredProjects = projects.filter((p) => p.status === activeStatus);
+
+  // Projets filtrés par direction ET statut
+  const projectsFilteredByDirection = filterDirection === "all"
+    ? projects
+    : projects.filter((p) => p.department === filterDirection);
+
+  const filteredProjects = projectsFilteredByDirection.filter((p) => p.status === activeStatus);
   const totalPages = Math.ceil(filteredProjects.length / CARDS_PER_PAGE);
   const paginatedProjects = filteredProjects.slice(
     currentPage * CARDS_PER_PAGE,
@@ -79,7 +83,6 @@ export default function ProjectsKanban() {
 
   return (
     <div style={{ padding: "16px", maxWidth: "1600px", margin: "0 auto" }}>
-
       <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
 
       {/* En-tête */}
@@ -88,7 +91,7 @@ export default function ProjectsKanban() {
         {isAdmin && (
           <Button onClick={handleAddProject} size="sm" className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
-              Ajouter un Nouveau Projet
+            Ajouter un Nouveau Projet
           </Button>
         )}
       </div>
@@ -105,46 +108,69 @@ export default function ProjectsKanban() {
         </div>
       )}
 
-      {/* Onglets de statut — scroll horizontal sans barre visible */}
+      {/* Filtre par direction */}
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          className="hide-scrollbar"
+          style={{ overflowX: "auto", paddingBottom: "4px", scrollbarWidth: "none" } as React.CSSProperties}
+        >
+          <div style={{ display: "flex", gap: "8px", minWidth: "max-content", alignItems: "center" }}>
+            <span style={{ fontSize: "13px", color: "#6b7280", flexShrink: 0 }}>Direction :</span>
+            <button
+              onClick={() => setFilterDirection("all")}
+              style={{
+                padding: "4px 12px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500,
+                cursor: "pointer", border: "none", whiteSpace: "nowrap",
+                backgroundColor: filterDirection === "all" ? "#111827" : "#f3f4f6",
+                color: filterDirection === "all" ? "white" : "#374151",
+              }}
+            >
+              Toutes ({projects.length})
+            </button>
+            {allDirections.map((dir) => {
+              const count = projects.filter((p) => p.department === dir).length;
+              const isActive = filterDirection === dir;
+              return (
+                <button
+                  key={dir}
+                  onClick={() => setFilterDirection(dir)}
+                  style={{
+                    padding: "4px 12px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500,
+                    cursor: "pointer", border: "none", whiteSpace: "nowrap",
+                    backgroundColor: isActive ? "#111827" : "#f3f4f6",
+                    color: isActive ? "white" : "#374151",
+                  }}
+                >
+                  {dir} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Onglets de statut */}
       <div
         className="hide-scrollbar"
-        style={{
-          overflowX: "auto",
-          paddingBottom: "8px",
-          marginBottom: "20px",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        } as React.CSSProperties}
+        style={{ overflowX: "auto", paddingBottom: "8px", marginBottom: "20px", scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
       >
         <div style={{ display: "flex", gap: "8px", minWidth: "max-content" }}>
           {allStatuses.map((status, index) => {
-            const count = projects.filter((p) => p.status === status).length;
+            const count = projectsFilteredByDirection.filter((p) => p.status === status).length;
             const isActive = activeStatusIndex === index;
             return (
               <button
                 key={status}
                 onClick={() => setActiveStatusIndex(index)}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "6px 14px",
-                  borderRadius: "9999px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                  border: "none",
+                  display: "flex", alignItems: "center", gap: "6px",
+                  padding: "6px 14px", borderRadius: "9999px", fontSize: "13px",
+                  fontWeight: 500, whiteSpace: "nowrap", cursor: "pointer", border: "none",
                   backgroundColor: isActive ? "#2563eb" : "#f3f4f6",
                   color: isActive ? "white" : "#374151",
-                  transition: "background-color 0.15s",
                 }}
               >
-                <div style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  backgroundColor: isActive ? "white" : statusColors[status],
-                  flexShrink: 0,
-                }} />
+                <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: isActive ? "white" : statusColors[status], flexShrink: 0 }} />
                 <span>{status}({count})</span>
               </button>
             );
@@ -152,11 +178,14 @@ export default function ProjectsKanban() {
         </div>
       </div>
 
-      {/* En-tête de la colonne active */}
+      {/* En-tête colonne active */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
         <div style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: statusColors[activeStatus] }} />
         <span style={{ fontWeight: 600, color: "#111827" }}>{activeStatus}</span>
         <span style={{ fontSize: "14px", color: "#6b7280", marginLeft: "4px" }}>{filteredProjects.length}</span>
+        {filterDirection !== "all" && (
+          <span style={{ fontSize: "12px", color: "#9ca3af", marginLeft: "4px" }}>— {filterDirection}</span>
+        )}
       </div>
 
       {/* Liste des cartes */}
@@ -168,16 +197,7 @@ export default function ProjectsKanban() {
             <div
               key={project.id}
               onClick={() => handleEditProject(project)}
-              style={{
-                backgroundColor: "white",
-                borderRadius: "10px",
-                padding: "16px",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
+              style={{ backgroundColor: "white", borderRadius: "10px", padding: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", cursor: "pointer", display: "flex", flexDirection: "column", gap: "10px" }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <h4 style={{ fontWeight: 500, color: "#111827", fontSize: "14px", lineHeight: 1.4 }}>{project.name}</h4>
@@ -209,27 +229,13 @@ export default function ProjectsKanban() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginTop: "20px" }}>
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-            disabled={currentPage === 0}
-            style={{
-              padding: "6px", borderRadius: "6px", border: "none", background: "none",
-              cursor: currentPage === 0 ? "not-allowed" : "pointer",
-              opacity: currentPage === 0 ? 0.3 : 1,
-            }}
-          >
+          <button onClick={() => setCurrentPage((p) => Math.max(0, p - 1))} disabled={currentPage === 0}
+            style={{ padding: "6px", borderRadius: "6px", border: "none", background: "none", cursor: currentPage === 0 ? "not-allowed" : "pointer", opacity: currentPage === 0 ? 0.3 : 1 }}>
             <ChevronLeft style={{ width: 18, height: 18, color: "#374151" }} />
           </button>
           <span style={{ fontSize: "13px", color: "#6b7280" }}>{currentPage + 1} / {totalPages}</span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={currentPage === totalPages - 1}
-            style={{
-              padding: "6px", borderRadius: "6px", border: "none", background: "none",
-              cursor: currentPage === totalPages - 1 ? "not-allowed" : "pointer",
-              opacity: currentPage === totalPages - 1 ? 0.3 : 1,
-            }}
-          >
+          <button onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))} disabled={currentPage === totalPages - 1}
+            style={{ padding: "6px", borderRadius: "6px", border: "none", background: "none", cursor: currentPage === totalPages - 1 ? "not-allowed" : "pointer", opacity: currentPage === totalPages - 1 ? 0.3 : 1 }}>
             <ChevronRight style={{ width: 18, height: 18, color: "#374151" }} />
           </button>
         </div>
