@@ -46,11 +46,13 @@ export default function DashboardOverview() {
 
   const delayedProjects = projects.filter((p) => isProjectDelayed(p.endDate, p.status)).length;
 
-  const averageProgress =
-    projects.length > 0
-      ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length
-      : 0;
-
+  // Calcul sécurisé — ignore les valeurs NaN/null/undefined
+  const validProjects = projects.filter(
+    (p) => p.progress !== undefined && p.progress !== null && !isNaN(p.progress)
+  );
+  const averageProgress = validProjects.length > 0
+    ? validProjects.reduce((sum, p) => sum + p.progress, 0) / validProjects.length
+    : 0;
   const averageProgressPercent = formatProgressValue(averageProgress);
 
   const statusDistribution = Object.entries(
@@ -123,7 +125,7 @@ export default function DashboardOverview() {
               <TrendingUp style={{ width: isDesktop ? 32 : 28, height: isDesktop ? 32 : 28, color: "#16a34a" }} />
               <div style={{ fontSize: isDesktop ? "36px" : "30px", fontWeight: 700, color: "#111827" }}>{averageProgressPercent}%</div>
             </div>
-            <Progress value={averageProgress} className="h-2" />
+            <Progress value={averageProgressPercent} className="h-2" />
           </CardContent>
         </Card>
       </div>
@@ -137,15 +139,9 @@ export default function DashboardOverview() {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie
-                  data={statusDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
+                <Pie data={statusDistribution} cx="50%" cy="50%" labelLine={false}
                   label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ""}
-                  outerRadius={90}
-                  dataKey="value"
-                >
+                  outerRadius={90} dataKey="value">
                   {statusDistribution.map((entry) => (
                     <Cell key={`cell-${entry.name}`} fill={entry.color} />
                   ))}
@@ -167,15 +163,15 @@ export default function DashboardOverview() {
               <span style={{ fontSize: "18px", fontWeight: 700 }}>{projects.length}</span>
             </div>
             {[
-              { label: "En exécution",   status: "En exécution",                     color: "#F59E0B" },
-              { label: "En étude",        status: "En etude",                         color: "#9333EA" },
-              { label: "Non démarré",     status: "Non demarre",                      color: "#94A3B8" },
-              { label: "En attente Go",   status: "En attente de Go pour production", color: "#86EFAC" },
-              { label: "En production",   status: "En production",                    color: "#16A34A" },
-              { label: "En service",      status: "En service",                       color: "#22C55E" },
-              { label: "En pause",        status: "En pause",                         color: "#6B7280" },
-              { label: "Clôturé",         status: "Cloturé",                          color: "#60A5FA" },
-              { label: "Abandonné",       status: "Abandonne",                        color: "#DC2626" },
+              { label: "En exécution",  status: "En exécution",                     color: "#F59E0B" },
+              { label: "En étude",       status: "En etude",                         color: "#9333EA" },
+              { label: "Non démarré",    status: "Non demarre",                      color: "#94A3B8" },
+              { label: "En attente Go",  status: "En attente de Go pour production", color: "#86EFAC" },
+              { label: "En production",  status: "En production",                    color: "#16A34A" },
+              { label: "En service",     status: "En service",                       color: "#22C55E" },
+              { label: "En pause",       status: "En pause",                         color: "#6B7280" },
+              { label: "Clôturé",        status: "Cloturé",                          color: "#60A5FA" },
+              { label: "Abandonné",      status: "Abandonne",                        color: "#DC2626" },
             ].map(({ label, status, color }) => {
               const count = projects.filter((p) => p.status === status).length;
               return (
